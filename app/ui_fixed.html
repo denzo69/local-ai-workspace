@@ -1,0 +1,715 @@
+﻿<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <title>Säde v1</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #111827;
+            color: #f9fafb;
+            margin: 0;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            background: #1f2937;
+            padding: 30px;
+            border-radius: 18px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.35);
+        }
+
+        h1 {
+            color: #fbbf24;
+            margin-top: 0;
+        }
+
+        h2 {
+            margin-top: 35px;
+            color: #fde68a;
+        }
+
+        input, textarea {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 8px;
+            margin-bottom: 18px;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            font-size: 15px;
+        }
+
+        textarea {
+            min-height: 130px;
+            resize: vertical;
+        }
+
+        button {
+            background: #fbbf24;
+            color: #111827;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: #f59e0b;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            background: #030712;
+            padding: 20px;
+            border-radius: 12px;
+            max-height: 500px;
+            overflow: auto;
+        }
+
+        .status {
+            margin-top: 20px;
+            color: #93c5fd;
+        }
+
+        label {
+            font-weight: bold;
+            color: #e5e7eb;
+        }
+
+        .chat-box {
+            background: #030712;
+            padding: 20px;
+            border-radius: 12px;
+            min-height: 160px;
+            max-height: 500px;
+            overflow: auto;
+            white-space: pre-wrap;
+            margin-bottom: 18px;
+        }
+
+        .user {
+            color: #93c5fd;
+            margin-bottom: 12px;
+        }
+
+        .sade {
+            color: #fbbf24;
+            margin-bottom: 20px;
+        }
+
+        .small {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Säde v1</h1>
+        <p>Paikallinen muisti ja keskustelu ovat käytössä.</p>
+        <p class="small" id="configInfo">Ladataan asetuksia...</p>
+        <p class="small" id="ollamaStatus">Ollama: ei tarkistettu vielä</p>
+        <button onclick="checkOllamaStatus()">Tarkista Ollama</button>
+	<button onclick="createExport()">Luo vientitiedosto</button>
+	<button onclick="createBackup()">Luo varmuuskopio</button>
+
+	<p class="small" id="exportStatus">Export: ei luotu vielä</p>
+	<p class="small" id="backupStatus">Backup: ei luotu vielä</p>
+
+	<h2>Järjestelmän tila</h2>
+
+	<button onclick="loadSystemStatus()">Päivitä järjestelmän tila</button>
+
+	<pre id="systemStatus">Järjestelmän tila ei ole vielä ladattu.</pre> 
+   
+        <h2>Asetukset</h2>
+
+        <label>Malli</label>
+	<input id="configModel" placeholder="esim. gpt-oss:20b">
+
+        <label>Lämpötila</label>
+	<input id="configTemperature" type="number" step="0.1" min="0" max="2">
+
+	<label>Konteksti / num_ctx</label>
+	<input id="configNumCtx" type="number" min="512" step="512">
+
+	<label>Säde-muistin muistimerkit</label>
+	<input id="configMemoryChars" type="number" min="500" step="500">
+
+	<label>Keskustelulokin muistimerkit</label>
+	<input id="configChatChars" type="number" min="500" step="500">
+
+	<button onclick="saveConfigSettings()">Tallenna asetukset</button>
+
+        <h2>Säteen ydinprompti</h2>
+
+	<label>System prompt</label>
+	<textarea id="systemPromptText" placeholder="Säteen perusohje latautuu tähän..."></textarea>
+
+	<button onclick="loadSystemPrompt()">Näytä ydinprompti</button>
+	<button onclick="saveSystemPrompt()">Tallenna ydinprompti</button>
+
+	<h2>Keskustele Säteen kanssa</h2>
+
+        <div id="chatBox" class="chat-box"></div>
+
+        <label>Viesti</label>
+        <textarea id="chatMessage" placeholder="Kirjoita viesti Säde v1:lle..."></textarea>
+
+       	<button onclick="sendChat()">Lähetä</button>
+	<button onclick="clearVisibleChat()">Tyhjennä näkyvä chat</button>
+	<button onclick="saveVisibleChatToMemory()">Tallenna nykyinen keskustelu Säde-muistiin</button>
+
+        <h2>Tallenna muisto Säde-muistiin</h2>
+
+        <label>Otsikko</label>
+        <input id="title" placeholder="Esim. Ensimmäinen keskustelu">
+
+        <label>Tagit pilkulla erotettuna</label>
+        <input id="tags" placeholder="esim. sade, muisto, kehitys">
+
+        <label>Teksti</label>
+        <textarea id="text" placeholder="Kirjoita muisto tähän..."></textarea>
+
+        <button onclick="saveMemory()">Tallenna muisto</button>
+        <button onclick="loadMemory()">Näytä Säde-muisti</button>
+        <button onclick="loadChatLog()">Näytä keskusteluloki</button>
+
+        <div class="status" id="status"></div>
+
+        <h2>Hae Säde-muistista</h2>
+
+	<label>Hakusana</label>
+	<input id="memorySearchQuery" placeholder="Esim. Jani, Säde v1, keskusteluloki">
+
+	<button onclick="searchMemory()">Hae Säde-muistista</button>
+
+	<h2>Hakutulokset</h2>
+	<pre id="memorySearchResults"></pre>
+
+	<h2>Säde-muisti</h2>
+        <pre id="memory"></pre>
+
+        <h2>Keskusteluloki</h2>
+        <pre id="chatLog"></pre>
+    </div>
+
+    <script>
+    function addChatLine(role, text) {
+        const chatBox = document.getElementById("chatBox");
+        const div = document.createElement("div");
+        div.className = role === "Sinä" ? "user" : "sade";
+        div.innerText = role + ":\n" + text;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function clearVisibleChat() {
+        const chatBox = document.getElementById("chatBox");
+        chatBox.innerHTML = "";
+        document.getElementById("status").innerText = "Näkyvä chat tyhjennetty. Keskusteluloki säilyy tallessa.";
+    }
+
+async function saveVisibleChatToMemory() {
+    const chatBox = document.getElementById("chatBox");
+    const content = chatBox.innerText.trim();
+
+    if (!content) {
+        document.getElementById("status").innerText = "Näkyvä chat on tyhjä, ei tallennettavaa.";
+        return;
+    }
+
+    try {
+        const response = await fetch("/memory/visible-chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                content: content
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            document.getElementById("status").innerText = "Nykyinen keskustelu tallennettu Säde-muistiin.";
+            loadMemory();
+        } else {
+            document.getElementById("status").innerText = "Virhe: " + JSON.stringify(data);
+        }
+
+    } catch (error) {
+        document.getElementById("status").innerText = "Yhteysvirhe: " + error;
+    }
+}
+
+    
+async function searchMemory() {
+    const queryBox = document.getElementById("memorySearchQuery");
+    const resultsBox = document.getElementById("memorySearchResults");
+    const query = queryBox.value.trim();
+
+    if (!query) {
+        document.getElementById("status").innerText = "Kirjoita hakusana ensin.";
+        return;
+    }
+
+    document.getElementById("status").innerText = "Haetaan Säde-muistista...";
+
+    try {
+        const response = await fetch("/memory/search", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                query: query
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            if (data.count === 0) {
+                resultsBox.innerText = "Ei osumia haulla: " + query;
+                document.getElementById("status").innerText = "Ei osumia.";
+                return;
+            }
+
+            let output = "";
+            output += "Hakusana: " + data.query + "\n";
+            output += "Osumia: " + data.count + "\n\n";
+
+            data.results.forEach((item, index) => {
+                output += "---\n";
+                output += "Tulos " + (index + 1) + " / rivi " + item.line + "\n\n";
+                output += item.snippet + "\n\n";
+            });
+
+            resultsBox.innerText = output;
+            resultsBox.scrollTop = 0;
+
+            document.getElementById("status").innerText = "Haku valmis.";
+        } else {
+            resultsBox.innerText = "Virhe: " + JSON.stringify(data);
+            document.getElementById("status").innerText = "Haku epäonnistui.";
+        }
+
+    } catch (error) {
+        resultsBox.innerText = "Yhteysvirhe: " + error;
+        document.getElementById("status").innerText = "Yhteysvirhe haussa.";
+    }
+}
+async function sendChat() {
+        const messageBox = document.getElementById("chatMessage");
+        const message = messageBox.value.trim();
+
+        if (!message) {
+            document.getElementById("status").innerText = "Kirjoita ensin viesti.";
+            return;
+        }
+
+        addChatLine("Sinä", message);
+        messageBox.value = "";
+        document.getElementById("status").innerText = "Säde ajattelee...";
+
+        try {
+            const response = await fetch("/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    message: message
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                addChatLine("Säde", data.reply);
+                document.getElementById("status").innerText = "Vastaus valmis.";
+                loadMemory();
+                loadChatLog();
+            } else {
+                document.getElementById("status").innerText = "Virhe: " + JSON.stringify(data);
+            }
+
+        } catch (error) {
+            document.getElementById("status").innerText = "Yhteysvirhe: " + error;
+        }
+    }
+
+    async function saveMemory() {
+        const title = document.getElementById("title").value;
+        const text = document.getElementById("text").value;
+        const tagsRaw = document.getElementById("tags").value;
+
+        const tags = tagsRaw
+            ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean)
+            : [];
+
+        const response = await fetch("/memory/sade_memory", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                title: title || null,
+                text: text,
+                tags: tags
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            document.getElementById("status").innerText = "Tallennettu: " + data.title;
+            document.getElementById("text").value = "";
+            loadMemory();
+        } else {
+            document.getElementById("status").innerText = "Virhe: " + JSON.stringify(data);
+        }
+    }
+
+    async function loadMemory() {
+    const response = await fetch("/memory/sade_memory");
+    const data = await response.json();
+
+    if (data.ok) {
+        const memoryBox = document.getElementById("memory");
+        memoryBox.innerText = data.content;
+        memoryBox.scrollTop = memoryBox.scrollHeight;
+
+        document.getElementById("status").innerText = "Säde-muisti ladattu.";
+    } else {
+        document.getElementById("memory").innerText = data.message;
+    }
+}
+
+    async function loadChatLog() {
+        const response = await fetch("/memory/chatlog");
+        const data = await response.json();
+
+        if (data.ok) {
+            const chatLogBox = document.getElementById("chatLog");
+            chatLogBox.innerText = data.content;
+            chatLogBox.scrollTop = chatLogBox.scrollHeight;
+        } else {
+            document.getElementById("chatLog").innerText = data.message;
+        }
+    }
+
+    document.getElementById("chatMessage").addEventListener("keydown", function(event) {
+        if (event.ctrlKey && event.key === "Enter") {
+            sendChat();
+        }
+    });
+
+async function checkOllamaStatus() {
+    const statusBox = document.getElementById("ollamaStatus");
+    statusBox.innerText = "Ollama: tarkistetaan...";
+
+    try {
+        const response = await fetch("/ollama/status");
+        const data = await response.json();
+
+        if (response.ok && data.ok) {
+            statusBox.innerText =
+                "Ollama: connected ✅ / malli: " +
+                data.model +
+                " / vastausaika: " +
+                data.duration_seconds.toFixed(2) +
+                " s";
+        } else {
+            statusBox.innerText =
+                "Ollama: ei yhteyttä ❌ / " +
+                (data.message || JSON.stringify(data));
+        }
+    } catch (error) {
+        statusBox.innerText = "Ollama: yhteysvirhe ❌ " + error;
+    }
+}
+
+async function loadConfigInfo() {
+    const infoBox = document.getElementById("configInfo");
+
+    try {
+        const response = await fetch("/config");
+
+        if (!response.ok) {
+            infoBox.innerText = "Asetusten lataus epäonnistui: HTTP " + response.status;
+            return;
+        }
+
+        const data = await response.json();
+
+        if (!data.ok) {
+            infoBox.innerText = "Asetuksia ei saatu ladattua: " + JSON.stringify(data);
+            return;
+        }
+
+        document.getElementById("configModel").value = data.ollama_model || "";
+        document.getElementById("configTemperature").value = data.temperature ?? "";
+        document.getElementById("configNumCtx").value = data.num_ctx ?? "";
+        document.getElementById("configMemoryChars").value = data.memory_context_chars ?? "";
+        document.getElementById("configChatChars").value = data.chat_context_chars ?? "";
+
+        infoBox.innerText =
+            "Malli: " + data.ollama_model +
+            " / lämpötila: " + data.temperature +
+            " / konteksti: " + data.num_ctx +
+            " / muisti: " + data.memory_context_chars +
+            " / chat: " + data.chat_context_chars;
+
+    } catch (error) {
+        infoBox.innerText = "Asetusten lataus epäonnistui: " + error;
+        console.error("loadConfigInfo error:", error);
+    }
+}
+
+async function loadSystemPrompt() {
+    const promptBox = document.getElementById("systemPromptText");
+
+    try {
+        const response = await fetch("/system-prompt");
+        const data = await response.json();
+
+        if (response.ok && data.ok) {
+            promptBox.value = data.content;
+            document.getElementById("status").innerText = "Ydinprompti ladattu.";
+        } else {
+            document.getElementById("status").innerText = "Ydinpromptin lataus epäonnistui: " + JSON.stringify(data);
+        }
+    } catch (error) {
+        document.getElementById("status").innerText = "Yhteysvirhe ydinpromptia ladattaessa: " + error;
+    }
+}
+
+
+async function saveSystemPrompt() {
+    const promptBox = document.getElementById("systemPromptText");
+    const content = promptBox.value.trim();
+
+    if (!content) {
+        document.getElementById("status").innerText = "Ydinprompti ei saa olla tyhjä.";
+        return;
+    }
+
+    try {
+        const response = await fetch("/system-prompt", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                content: content
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.ok) {
+            document.getElementById("status").innerText = "Ydinprompti tallennettu.";
+        } else {
+            document.getElementById("status").innerText = "Ydinpromptin tallennus epäonnistui: " + JSON.stringify(data);
+        }
+    } catch (error) {
+        document.getElementById("status").innerText = "Yhteysvirhe ydinpromptia tallentaessa: " + error;
+    }
+}
+
+async function saveConfigSettings() {
+    const model = document.getElementById("configModel").value.trim();
+    const temperatureRaw = document.getElementById("configTemperature").value.replace(",", ".");
+    const temperature = parseFloat(temperatureRaw);
+    const numCtx = parseInt(document.getElementById("configNumCtx").value);
+    const memoryChars = parseInt(document.getElementById("configMemoryChars").value);
+    const chatChars = parseInt(document.getElementById("configChatChars").value);
+
+    if (!model) {
+        document.getElementById("status").innerText = "Mallin nimi ei saa olla tyhjä.";
+        return;
+    }
+
+    try {
+        const response = await fetch("/config", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                ollama_model: model,
+                temperature: temperature,
+                num_ctx: numCtx,
+                memory_context_chars: memoryChars,
+                chat_context_chars: chatChars
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.ok) {
+            document.getElementById("status").innerText = "Asetukset tallennettu.";
+            loadConfigInfo();
+            checkOllamaStatus();
+        } else {
+            document.getElementById("status").innerText = "Asetusten tallennus epäonnistui: " + JSON.stringify(data);
+        }
+    } catch (error) {
+        document.getElementById("status").innerText = "Yhteysvirhe asetuksia tallentaessa: " + error;
+    }
+}
+
+async function loadSystemStatus() {
+    const box = document.getElementById("systemStatus");
+
+    if (!box) {
+        alert("systemStatus-elementtiä ei löydy.");
+        return;
+    }
+
+    box.innerText = "Ladataan järjestelmän tilaa...";
+
+    try {
+        const url = "/system/status?ts=" + Date.now();
+
+        const response = await fetch(url, {
+            method: "GET",
+            cache: "no-store"
+        });
+
+        const rawText = await response.text();
+
+        if (!response.ok) {
+            box.innerText =
+                "Järjestelmän tilan lataus epäonnistui.\n" +
+                "HTTP status: " + response.status + "\n\n" +
+                rawText;
+            return;
+        }
+
+        let data;
+
+        try {
+            data = JSON.parse(rawText);
+        } catch (parseError) {
+            box.innerText =
+                "Vastaus ei ollut kelvollista JSONia.\n\n" +
+                rawText + "\n\n" +
+                "Virhe: " + parseError;
+            return;
+        }
+
+        if (!data.ok) {
+            box.innerText =
+                "Järjestelmän tila palautti virheen:\n" +
+                JSON.stringify(data, null, 2);
+            return;
+        }
+
+        let output = "";
+
+        output += "Säde server: " + data.server + " ✅\n";
+        output += "Aika: " + data.time + "\n\n";
+
+        output += "Malli: " + data.model + "\n";
+        output += "Konteksti / num_ctx: " + data.num_ctx + "\n\n";
+
+        output += "Project path: " + (data.project.exists ? "OK ✅" : "PUUTTUU ❌") + "\n";
+        output += data.project.path + "\n\n";
+
+        output += "Memory path: " + (data.memory.exists ? "OK ✅" : "PUUTTUU ❌") + "\n";
+        output += data.memory.path + "\n\n";
+
+        output += "Säde-muisti: " + (data.sade_memory.exists ? "OK ✅" : "PUUTTUU ❌") + "\n";
+        output += data.sade_memory.path + "\n";
+        output += "Koko: " + data.sade_memory.size_bytes + " bytes\n\n";
+
+        output += "Keskusteluloki: " + (data.chat_log.exists ? "OK ✅" : "PUUTTUU ❌") + "\n";
+        output += data.chat_log.path + "\n";
+        output += "Koko: " + data.chat_log.size_bytes + " bytes\n\n";
+
+        output += "Ydinprompti: " + (data.system_prompt.exists ? "OK ✅" : "PUUTTUU ❌") + "\n";
+        output += data.system_prompt.path + "\n";
+        output += "Koko: " + data.system_prompt.size_bytes + " bytes\n\n";
+
+        output += "Config: " + (data.config.exists ? "OK ✅" : "PUUTTUU ❌") + "\n";
+        output += data.config.path + "\n\n";
+
+        output += "Backup path: " + (data.backup_path.exists ? "OK ✅" : "EI VIELÄ LUOTU / PUUTTUU ⚠️") + "\n";
+        output += data.backup_path.path + "\n\n";
+
+        output += "Export path: " + (data.export_path.exists ? "OK ✅" : "EI VIELÄ LUOTU / PUUTTUU ⚠️") + "\n";
+        output += data.export_path.path + "\n";
+
+        box.innerText = output;
+
+    } catch (error) {
+        box.innerText =
+            "Yhteysvirhe järjestelmän tilaa ladattaessa:\n" +
+            error;
+    }
+}
+async function createExport() {
+    const exportBox = document.getElementById("exportStatus");
+    exportBox.innerText = "Export: luodaan vientitiedostoa...";
+
+    try {
+        const response = await fetch("/export", {
+            method: "POST"
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.ok) {
+            exportBox.innerText = "Export luotu ✅ " + data.path;
+            document.getElementById("status").innerText = "Vientitiedosto luotu: " + data.filename;
+        } else {
+            exportBox.innerText = "Export epäonnistui ❌ " + JSON.stringify(data);
+        }
+    } catch (error) {
+        exportBox.innerText = "Export-yhteysvirhe ❌ " + error;
+    }
+}
+
+async function createBackup() {
+    const backupBox = document.getElementById("backupStatus");
+    backupBox.innerText = "Backup: luodaan varmuuskopiota...";
+
+    try {
+        const response = await fetch("/backup", {
+            method: "POST"
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.ok) {
+            backupBox.innerText = "Backup luotu ✅ " + data.backup_path;
+            document.getElementById("status").innerText = "Varmuuskopio luotu.";
+        } else {
+            backupBox.innerText = "Backup epäonnistui ❌ " + JSON.stringify(data);
+        }
+    } catch (error) {
+        backupBox.innerText = "Backup-yhteysvirhe ❌ " + error;
+    }
+}    
+window.addEventListener("DOMContentLoaded", function () {
+    loadConfigInfo();
+    checkOllamaStatus();
+    loadSystemPrompt();
+    loadSystemStatus();
+    loadMemory();
+    loadChatLog();
+});
+</script>
+</body>
+</html>
+

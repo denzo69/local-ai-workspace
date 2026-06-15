@@ -1,10 +1,8 @@
 # Säde v1
 
-Paikallinen kehitysympäristö, muistipesä ja AI-avustajaprojektin runko.
+Säde v1 on paikallinen tekoälyavustajan pesä, joka toimii Janin omalla koneella FastAPI:n, Ollaman ja paikallisten muistitedostojen avulla.
 
-## Tavoite
+Sovellus toimii selaimessa osoitteessa:
 
-- järjestetty projektikansio
-- muistojen ja tekstien säilytys
-- turvallinen kehitysympäristö
-- myöhemmin paikallinen AI-agenttirunko
+```text
+http://127.0.0.1:8080/ui

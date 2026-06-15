@@ -281,10 +281,10 @@ def extract_memory_command(message: str) -> Optional[str]:
         "muista, että",
         "kirjaa muistiin että",
         "kirjaa muistiin, että",
-        "lisää Säde-muistiin että",
-        "lisää Säde-muistiin, että",
-        "tallenna Säde-muistiin että",
-        "tallenna Säde-muistiin, että",
+        "lisää säde-muistian että",
+        "lisää säde-muistian, että",
+        "tallenna säde-muistian että",
+        "tallenna säde-muistian, että",
     ]
 
     for trigger in triggers:
@@ -494,6 +494,8 @@ def create_backup_files():
     files_to_backup = [
         PROJECT_PATH / "main.py",
         PROJECT_PATH / "config.json",
+        UI_TEMPLATE_PATH,
+        SYSTEM_PROMPT_PATH,
         SADE_MEMORY_PATH,
         CHAT_LOG_PATH,
         LOG_PATH
@@ -547,7 +549,7 @@ def root():
             "POST /config",
             "/ollama/status",
             "/health",
-            "/memory/sade-memory",
+            "/memory/sade_memory",
             "/memory/visible-chat",
             "/memory/chatlog",
             "/memory/search",
@@ -708,7 +710,7 @@ def system_status():
     }
 
 
-@app.get("/memory/sade-memory")
+@app.get("/memory/sade_memory")
 def get_sade_memory():
     ensure_paths()
     return read_markdown_file(SADE_MEMORY_PATH)
@@ -733,7 +735,7 @@ def get_system_prompt() -> str:
     return content
 
 
-@app.post("/memory/sade-memory")
+@app.post("/memory/sade_memory")
 def add_sade_memory_entry(entry: MemoryEntry):
     if not entry.text.strip():
         raise HTTPException(status_code=400, detail="Teksti ei saa olla tyhjä.")
@@ -749,7 +751,7 @@ def save_visible_chat(request: VisibleChatSaveRequest):
     entry = MemoryEntry(
         title="Näkyvä keskustelu tallennettu",
         text=request.content.strip(),
-        tags=["chat", "näkyvä keskustelu", "sade-muisti"]
+        tags=["chat", "näkyvä keskustelu", "säde-muisti"]
     )
 
     return append_markdown_entry(SADE_MEMORY_PATH, entry)
@@ -812,7 +814,7 @@ def chat(request: ChatRequest):
         save_result = append_markdown_entry(SADE_MEMORY_PATH, entry)
 
         reply = (
-            f"Tallensin tämän Säde-muistiin:\n\n"
+            f"Tallensin tämän Säde-muistian:\n\n"
             f"{memory_text}\n\n"
             f"Aika: {save_result['time']}"
         )
@@ -850,6 +852,5 @@ def ui():
         )
 
     return HTMLResponse(
-        content=UI_TEMPLATE_PATH.read_text(encoding="utf-8"),
-        status_code=200
+        content=UI_TEMPLATE_PATH.read_text(encoding="utf-8")
     )

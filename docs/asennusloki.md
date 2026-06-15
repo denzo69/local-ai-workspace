@@ -32,7 +32,7 @@ Tehdyt asiat:
 
 \- muistien kirjoitustoiminto lisätty
 
-\- Sydänkirjan ja lupausten endpointit lisätty
+\- Säde-muistin ja lupausten endpointit lisätty
 
 \- backup.ps1-varmuuskopiointiskripti lisätty
 

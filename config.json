@@ -1,0 +1,10 @@
+{
+  "ollama_url": "http://127.0.0.1:11434/api/generate",
+  "ollama_model": "gpt-oss:20b",
+  "temperature": 0.6,
+  "num_ctx": 8192,
+  "memory_context_chars": 6000,
+  "chat_context_chars": 4000,
+  "export_path": "D:/Sade_Exports",
+  "backup_path": "D:/Sade_Backups"
+}
