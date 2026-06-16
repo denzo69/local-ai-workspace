@@ -9,6 +9,33 @@ import urllib.request
 import urllib.error
 import shutil
 
+from app.tools import (
+    ToolError,
+    append_file as tool_append_file,
+    get_tools_status,
+    list_available_tools,
+    list_files as tool_list_files,
+    project_status as tool_project_status,
+    read_file as tool_read_file,
+    write_file as tool_write_file,
+)
+
+from app.tool_router import (
+    route_tool_preview,
+    route_tool_request,
+)
+
+from app.file_ingestion import (
+    ingest_file,
+    read_ingestion_log,
+    summarize_file,
+)
+
+from app.tool_log import (
+    log_tool_event,
+    read_tool_log,
+)
+
 from app.semantic_memory import (
     add_text_to_semantic_memory,
     format_semantic_context,
@@ -31,6 +58,9 @@ CHAT_LOG_PATH = MEMORY_PATH / "chat_log.md"
 SYSTEM_PROMPT_PATH = PROJECT_PATH / "system_prompt.md"
 TEMPLATES_PATH = PROJECT_PATH / "templates"
 UI_TEMPLATE_PATH = TEMPLATES_PATH / "ui.html"
+UPLOADS_PATH = PROJECT_PATH / "uploads"
+TOOL_LOG_PATH = MEMORY_PATH / "tool_log.jsonl"
+INGESTION_LOG_PATH = MEMORY_PATH / "ingested_files.jsonl"
 
 
 class MemoryEntry(BaseModel):
@@ -68,6 +98,48 @@ class ConfigUpdateRequest(BaseModel):
     chat_context_chars: Optional[int] = None
     semantic_context_chars: Optional[int] = None
     semantic_search_results: Optional[int] = None
+
+class ToolRouterRequest(BaseModel):
+    message: str = Field(..., description="Luonnollinen kielipyyntö tool routerille")
+
+
+class FileIngestRequest(BaseModel):
+    relative_path: str = Field(..., description="Käsiteltävä tiedosto projektikansion sisällä")
+    add_to_memory: Optional[bool] = Field(default=True, description="Lisätäänkö tiivistelmä Säde-muistiin")
+    add_to_semantic: Optional[bool] = Field(default=True, description="Lisätäänkö koko teksti semanttiseen muistiin")
+    title: Optional[str] = Field(default=None, description="Valinnainen otsikko muistimerkinnälle")
+    tags: Optional[List[str]] = Field(default=None, description="Valinnaiset tagit")
+
+
+class FileSummarizeRequest(BaseModel):
+    relative_path: str = Field(..., description="Tiivistettävä tiedosto projektikansion sisällä")
+
+
+class ToolLogReadRequest(BaseModel):
+    limit: Optional[int] = Field(default=50, description="Kuinka monta viimeisintä lokiriviä palautetaan")
+
+
+class ToolFileListRequest(BaseModel):
+    relative_path: Optional[str] = Field(default="", description="Polku projektikansion sisällä")
+    max_items: Optional[int] = Field(default=100, description="Maksimimäärä palautettavia kohteita")
+    include_hidden: Optional[bool] = Field(default=False, description="Näytä piilotetut tiedostot")
+
+
+class ToolFileReadRequest(BaseModel):
+    relative_path: str = Field(..., description="Luettava tiedosto projektikansion sisällä")
+    max_chars: Optional[int] = Field(default=20000, description="Maksimimäärä merkkejä")
+
+
+class ToolFileWriteRequest(BaseModel):
+    relative_path: str = Field(..., description="Kirjoitettava tiedosto projektikansion sisällä")
+    content: str = Field(..., description="Tiedoston sisältö")
+    overwrite: Optional[bool] = Field(default=False, description="Saako olemassa olevan tiedoston ylikirjoittaa")
+
+
+class ToolFileAppendRequest(BaseModel):
+    relative_path: str = Field(..., description="Tiedosto projektikansion sisällä")
+    content: str = Field(..., description="Lisättävä sisältö")
+
 
 def load_config():
     default_config = {
@@ -148,6 +220,7 @@ def ensure_paths():
     BASE_PATH.mkdir(parents=True, exist_ok=True)
     MEMORY_PATH.mkdir(parents=True, exist_ok=True)
     TEMPLATES_PATH.mkdir(parents=True, exist_ok=True)
+    UPLOADS_PATH.mkdir(parents=True, exist_ok=True)
 
     if not SADE_MEMORY_PATH.exists():
         SADE_MEMORY_PATH.write_text(
@@ -603,6 +676,19 @@ def root():
             "/memory/semantic/search",
             "/memory/semantic/rebuild",
             "/semantic/status",
+            "/tools/status",
+            "/tools/list",
+            "/tools/project-status",
+            "/tools/files/list",
+            "/tools/files/read",
+            "/tools/files/write",
+            "/tools/files/append",
+            "/tools/router/preview",
+            "/tools/router/run",
+            "/files/ingest",
+            "/files/summarize",
+            "/files/ingestion-log",
+            "/tools/log",
             "/export",
 	    "/backup",
             "/docs"
@@ -753,7 +839,11 @@ def system_status():
         "sade_memory": file_info(SADE_MEMORY_PATH),
         "chat_log": file_info(CHAT_LOG_PATH),
         "memory_log": file_info(LOG_PATH),
+        "tool_log": file_info(TOOL_LOG_PATH),
+        "ingestion_log": file_info(INGESTION_LOG_PATH),
+        "uploads": dir_info(UPLOADS_PATH),
         "semantic_memory": semantic_memory_status(PROJECT_PATH),
+        "tools": get_tools_status(PROJECT_PATH),
         "system_prompt": file_info(SYSTEM_PROMPT_PATH),
         "config": file_info(CONFIG_PATH),
         "backup_path": dir_info(backup_path),
@@ -816,6 +906,155 @@ def search_memory(request: MemorySearchRequest):
         raise HTTPException(status_code=400, detail="Hakusana ei saa olla tyhjä.")
 
     return search_sade_memory(request.query)
+
+def _tool_error_to_http(error: ToolError):
+    raise HTTPException(status_code=400, detail=str(error))
+
+
+@app.get("/tools/status")
+def tools_status():
+    return get_tools_status(PROJECT_PATH)
+
+
+@app.get("/tools/list")
+def tools_list():
+    return list_available_tools()
+
+
+@app.get("/tools/project-status")
+def tools_project_status():
+    return tool_project_status(PROJECT_PATH)
+
+
+@app.post("/tools/files/list")
+def tools_files_list(request: ToolFileListRequest):
+    try:
+        return tool_list_files(
+            PROJECT_PATH,
+            relative_path=request.relative_path or "",
+            max_items=request.max_items or 100,
+            include_hidden=bool(request.include_hidden),
+        )
+    except ToolError as error:
+        _tool_error_to_http(error)
+
+
+@app.post("/tools/files/read")
+def tools_files_read(request: ToolFileReadRequest):
+    try:
+        return tool_read_file(
+            PROJECT_PATH,
+            relative_path=request.relative_path,
+            max_chars=request.max_chars or 20000,
+        )
+    except ToolError as error:
+        _tool_error_to_http(error)
+
+
+@app.post("/tools/files/write")
+def tools_files_write(request: ToolFileWriteRequest):
+    try:
+        return tool_write_file(
+            PROJECT_PATH,
+            relative_path=request.relative_path,
+            content=request.content,
+            overwrite=bool(request.overwrite),
+        )
+    except ToolError as error:
+        _tool_error_to_http(error)
+
+
+@app.post("/tools/files/append")
+def tools_files_append(request: ToolFileAppendRequest):
+    try:
+        return tool_append_file(
+            PROJECT_PATH,
+            relative_path=request.relative_path,
+            content=request.content,
+        )
+    except ToolError as error:
+        _tool_error_to_http(error)
+
+
+@app.post("/files/summarize")
+def files_summarize(request: FileSummarizeRequest):
+    if not request.relative_path.strip():
+        raise HTTPException(status_code=400, detail="Tiedostopolku ei saa olla tyhjä.")
+
+    result = summarize_file(PROJECT_PATH, request.relative_path)
+
+    log_tool_event(
+        PROJECT_PATH,
+        tool="summarize_file",
+        action="api",
+        request=request.model_dump(),
+        result=result,
+    )
+
+    return result
+
+
+@app.post("/files/ingest")
+def files_ingest(request: FileIngestRequest):
+    if not request.relative_path.strip():
+        raise HTTPException(status_code=400, detail="Tiedostopolku ei saa olla tyhjä.")
+
+    result = ingest_file(
+        PROJECT_PATH,
+        request.relative_path,
+        add_to_memory=bool(request.add_to_memory),
+        add_to_semantic=bool(request.add_to_semantic),
+        title=request.title,
+        tags=request.tags or ["file", "ingested"],
+    )
+
+    log_tool_event(
+        PROJECT_PATH,
+        tool="ingest_file",
+        action="api",
+        request=request.model_dump(),
+        result=result,
+    )
+
+    return result
+
+
+@app.post("/files/ingestion-log")
+def files_ingestion_log(request: ToolLogReadRequest):
+    return read_ingestion_log(PROJECT_PATH, limit=request.limit or 50)
+
+
+@app.post("/tools/log")
+def tools_log(request: ToolLogReadRequest):
+    return read_tool_log(PROJECT_PATH, limit=request.limit or 50)
+
+
+@app.post("/tools/router/preview")
+def tools_router_preview(request: ToolRouterRequest):
+    if not request.message.strip():
+        raise HTTPException(status_code=400, detail="Viesti ei saa olla tyhjä.")
+
+    return route_tool_preview(request.message)
+
+
+@app.post("/tools/router/run")
+def tools_router_run(request: ToolRouterRequest):
+    if not request.message.strip():
+        raise HTTPException(status_code=400, detail="Viesti ei saa olla tyhjä.")
+
+    result = route_tool_request(PROJECT_PATH, request.message)
+
+    if result.get("handled"):
+        log_tool_event(
+            PROJECT_PATH,
+            tool=result.get("tool", "tool_router"),
+            action="router_api",
+            request={"message": request.message},
+            result=result.get("result", result),
+        )
+
+    return result
+
 
 @app.get("/semantic/status")
 def get_semantic_memory_status():
@@ -910,6 +1149,28 @@ def chat(request: ChatRequest):
             time=datetime.now().isoformat(timespec="seconds")
         )
 
+    tool_result = route_tool_request(PROJECT_PATH, request.message)
+
+    if tool_result.get("handled"):
+        reply = tool_result.get("reply", "Työkalu suoritettiin.")
+
+        log_tool_event(
+            PROJECT_PATH,
+            tool=tool_result.get("tool", "tool_router"),
+            action="chat",
+            request={"message": request.message},
+            result=tool_result.get("result", tool_result),
+        )
+
+        append_chat_log(request.message, reply)
+
+        return ChatResponse(
+            ok=True,
+            reply=reply,
+            model=load_config().get("ollama_model", "gpt-oss:20b"),
+            time=datetime.now().isoformat(timespec="seconds")
+        )
+
     prompt = build_sade_prompt(request.message)
     reply = ask_ollama(prompt)
 
@@ -932,6 +1193,11 @@ def ui():
             status_code=500,
             detail=f"UI-templatea ei löytynyt: {UI_TEMPLATE_PATH}"
         )
+
+    return HTMLResponse(
+        content=UI_TEMPLATE_PATH.read_text(encoding="utf-8"),
+        status_code=200
+    )
 
     return HTMLResponse(
         content=UI_TEMPLATE_PATH.read_text(encoding="utf-8"),
