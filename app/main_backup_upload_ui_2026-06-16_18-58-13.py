@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -59,12 +59,6 @@ SYSTEM_PROMPT_PATH = PROJECT_PATH / "system_prompt.md"
 TEMPLATES_PATH = PROJECT_PATH / "templates"
 UI_TEMPLATE_PATH = TEMPLATES_PATH / "ui.html"
 UPLOADS_PATH = PROJECT_PATH / "uploads"
-
-UPLOAD_ALLOWED_EXTENSIONS = {
-    ".txt", ".md", ".json", ".py", ".html", ".htm", ".css", ".js",
-    ".yml", ".yaml", ".toml", ".ini", ".ps1", ".bat"
-}
-UPLOAD_MAX_BYTES = 25 * 1024 * 1024
 TOOL_LOG_PATH = MEMORY_PATH / "tool_log.jsonl"
 INGESTION_LOG_PATH = MEMORY_PATH / "ingested_files.jsonl"
 
@@ -691,7 +685,6 @@ def root():
             "/tools/files/append",
             "/tools/router/preview",
             "/tools/router/run",
-            "/files/upload",
             "/files/ingest",
             "/files/summarize",
             "/files/ingestion-log",
@@ -982,88 +975,6 @@ def tools_files_append(request: ToolFileAppendRequest):
     except ToolError as error:
         _tool_error_to_http(error)
 
-
-
-@app.post("/files/upload")
-async def upload_file(file: UploadFile = File(...)):
-    ensure_paths()
-
-    original_name = Path(file.filename or "").name.strip()
-
-    if not original_name:
-        raise HTTPException(status_code=400, detail="Tiedostonimi puuttuu.")
-
-    suffix = Path(original_name).suffix.lower()
-
-    if suffix not in UPLOAD_ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Tiedostotyyppi ei ole sallittu upload v1:ssä: {suffix}"
-        )
-
-    data = await file.read()
-
-    if not data:
-        raise HTTPException(status_code=400, detail="Tiedosto on tyhjä.")
-
-    if len(data) > UPLOAD_MAX_BYTES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Tiedosto on liian suuri. Maksimi on {UPLOAD_MAX_BYTES} tavua."
-        )
-
-    try:
-        data.decode("utf-8")
-    except UnicodeDecodeError:
-        raise HTTPException(
-            status_code=400,
-            detail="Upload v1 tukee vain UTF-8-tekstitiedostoja."
-        )
-
-    target = UPLOADS_PATH / original_name
-
-    if target.exists():
-        stem = target.stem
-        ext = target.suffix
-        counter = 1
-
-        while True:
-            candidate = UPLOADS_PATH / f"{stem}_{counter}{ext}"
-            if not candidate.exists():
-                target = candidate
-                break
-            counter += 1
-
-    target.write_bytes(data)
-
-    relative_path = str(target.relative_to(PROJECT_PATH)).replace("\\", "/")
-
-    result = {
-        "ok": True,
-        "message": "Tiedosto ladattu Säteelle.",
-        "filename": target.name,
-        "relative_path": relative_path,
-        "path": str(target),
-        "size_bytes": target.stat().st_size,
-        "time": datetime.now().isoformat(timespec="seconds"),
-        "next_steps": [
-            f"tiivistä tiedosto {relative_path}",
-            f"lisää tiedosto {relative_path} muistiin"
-        ]
-    }
-
-    try:
-        log_tool_event(
-            PROJECT_PATH,
-            tool="upload_file",
-            action="api",
-            request={"filename": original_name, "size_bytes": len(data)},
-            result=result,
-        )
-    except Exception:
-        pass
-
-    return result
 
 @app.post("/files/summarize")
 def files_summarize(request: FileSummarizeRequest):
