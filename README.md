@@ -1,6 +1,6 @@
 # Säde v1 — Local AI Workspace
 
-![Tests](https://github.com/jani-eronen/Sade-v1/actions/workflows/tests.yml/badge.svg)
+[![Tests](https://github.com/denzo69/sade-v1-local/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/denzo69/sade-v1-local/actions/workflows/tests.yml)
 
 Säde v1 is a local-first AI assistant workspace built with Python, FastAPI, a browser UI, local model providers, memory, RAG, audit logging, evals, and explicit safety boundaries.
 
