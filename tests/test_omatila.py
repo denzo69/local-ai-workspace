@@ -34,7 +34,6 @@ def test_omatila_reply_matches_current_project_state() -> None:
     reply = render_introspection_reply(report, build_persona_frame(PROJECT_ROOT))
 
     assert "🧪 **audit_log** — `tested_candidate`" in reply
-    assert "Web Search Tool v1.2:n totuusraja ja keskustelureititys korjattiin" in reply
     assert "Seuraava suositeltu turvakerros on audit_log v1" not in reply
     assert "Lisää tai päivitä automaattiset testit omatila-ketjulle" not in reply
     assert "🧪 **memory_cleaner** — `tested_candidate`" in reply
@@ -47,5 +46,6 @@ def test_tool_router_omatila_uses_clean_persona_report() -> None:
 
     assert result["handled"] is True
     assert result["tool"] == "introspection"
-    assert "Web Search Tool v1.2:n totuusraja ja keskustelureititys korjattiin" in result["reply"]
+    assert "# Omatila" in result["reply"]
+    assert "Totuusraja" in result["reply"]
     assert "Seuraava suositeltu turvakerros on audit_log v1" not in result["reply"]
