@@ -34,7 +34,7 @@ Local AI Workspace demonstrates practical AI engineering rather than only prompt
 - **RAG and source quality checks** for safer retrieval-assisted answers.
 - **Prompt injection detection** and tool risk classification.
 - **Audit log and debug trace** for safety and observability.
-- **Kirjautumissuojaus** with local users, CSRF protection, and session cookies.
+- **Authentication** with local users, CSRF protection, and session cookies.
 - **Static and live AI eval entrypoints**.
 - **Backup/restore workflow** for local data.
 - **GitHub Actions CI** with pytest and coverage reporting.

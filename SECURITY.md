@@ -1,8 +1,8 @@
-# Security Policy — Säde v1
+# Security Policy — Local AI Workspace
 
-Säde v1 on paikallinen AI-työtila. Se käsittelee muistia, tiedostoja, audit-lokia ja kirjautumissessioita, joten sitä ei pidä altistaa avoimeen internetiin.
+Local AI Workspace is a local-first AI assistant project. It handles memory, files, audit logs, and login sessions, so it should not be exposed directly to the public internet.
 
-## Älä julkaise näitä
+## Do not publish these files
 
 - `app/memory/auth.json`
 - `app/memory/auth_sessions.json`
@@ -11,27 +11,26 @@ Säde v1 on paikallinen AI-työtila. Se käsittelee muistia, tiedostoja, audit-l
 - `app/memory/vector_db/`
 - `app/memory/backups/`
 - `app/memory/exports/`
-- henkilökohtaiset uploadit
+- personal uploads
 - `.env`
 
-## Suositeltu käyttö
+## Recommended use
 
-- paikallinen osoite `127.0.0.1`
-- kirjautumissuojaus käytössä
-- vahva salasana
-- ei porttiohjausta julkiseen internetiin
-- VPN/Tailscale vain jos etäkäyttö tarvitaan
+- bind to `127.0.0.1`
+- keep authentication enabled
+- use a strong password
+- do not port-forward the app to the public internet
+- use VPN/Tailscale and HTTPS if remote access is needed
 
-## Riskitoiminnot
+## High-risk actions
 
-Korkean riskin toimintoja ovat:
+High-risk actions include:
 
-- tiedostojen kirjoitus
-- muistiin kirjoittaminen
-- muistimerkinnän poisto
-- semanttisen indeksin uudelleenrakennus
-- system promptin muokkaus
-- varmuuskopion palautus
+- writing files
+- writing to memory
+- deleting memory entries
+- rebuilding the semantic index
+- editing the system prompt
+- restoring a backup
 
-Näiden tulee olla auditoituja ja tarvittaessa käyttäjän erikseen vahvistamia.
-
+These actions should be audited and, when appropriate, explicitly confirmed by the user.

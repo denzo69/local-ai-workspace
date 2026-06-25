@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Säde v1 are documented here.
+All notable changes to Local AI Workspace are documented here.
 
 ## [0.1.0] - 2026-06-24
 

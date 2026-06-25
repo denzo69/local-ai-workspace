@@ -1,17 +1,18 @@
-# Contributing — Säde v1
+# Contributing — Local AI Workspace
 
-Tämä projekti on vielä aktiivisessa kehityksessä.
+This project is still in active portfolio-stage development.
 
-Ennen muutosta:
+Before making a change:
 
-1. tarkista `git status`
-2. vältä henkilökohtaisen muistidatan muuttamista
-3. lisää testit uudelle toiminnolle
-4. aja `pytest`
+1. check `git status`
+2. avoid modifying personal memory data, local sessions, vector databases, or backups
+3. add or update tests for new behavior
+4. run `pytest`
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Älä committaa paikallisia muistiaineistoja, sessioita, vektorikantaa tai varmuuskopioita.
+Do not commit local memory files, sessions, vector databases, backups, exports, uploads, or `.env` files.
 
+For larger changes, keep the patch small, explain the reason, and make sure the project still passes CI.
