@@ -66,11 +66,11 @@ The same Local AI Workspace runs as one local AI service and can be opened from 
 
 **Desktop browser view on the local workstation**
 
-![Local AI Workspace desktop chat view](docs/screenshots/chat-desktop.png)
+![Local AI Workspace desktop app-only view](docs/screenshots/desktop-clean.png)
 
 **Mobile browser access to the same local AI workspace over a trusted network**
 
-![Local AI Workspace mobile browser access](docs/screenshots/mobile-browser.jpg)
+![Local AI Workspace mobile app-only preview](docs/screenshots/mobile-clean.jpg)
 
 More screenshot notes: [docs/screenshots/README.md](docs/screenshots/README.md).
 

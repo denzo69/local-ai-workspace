@@ -6,7 +6,9 @@ For portfolio screenshots, use the English UI language (`ui_language: "en"`) so 
 
 | File | Purpose |
 |---|---|
-| `chat-desktop.png` | Desktop browser view of the simplified Local AI Workspace. |
-| `mobile-browser.jpg` | Mobile responsive preview of the simplified Local AI Workspace. |
+| `desktop-clean.png` | Clean desktop app-only view of the simplified Local AI Workspace, with no browser tabs or OS taskbar visible. |
+| `mobile-clean.jpg` | Clean mobile responsive preview of the simplified Local AI Workspace, with no browser tabs or OS taskbar visible. |
+
+Older screenshot filenames may exist in Git history, but README uses the clean app-only images above for portfolio presentation.
 
 If new UI changes are made, replace these screenshots before tagging a release.
