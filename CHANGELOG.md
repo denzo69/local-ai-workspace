@@ -2,6 +2,19 @@
 
 All notable changes to Local AI Workspace are documented here.
 
+## [0.1.0-portfolio-beta] - 2026-06-25
+
+### Changed
+
+- Renamed the public portfolio surface to Local AI Workspace.
+- Updated README, screenshots, SECURITY, CONTRIBUTING, and issue templates for an English-speaking GitHub audience.
+- Clarified desktop and mobile browser access to the same local AI workspace.
+
+### Testing
+
+- Current local test status: `85 passed`.
+- GitHub Actions passes on Python 3.11 and 3.12.
+
 ## [0.1.0] - 2026-06-24
 
 ### Added
@@ -24,4 +37,4 @@ All notable changes to Local AI Workspace are documented here.
 
 ### Testing
 
-- Current local test status: `51 passed`.
+- Historical local test status: `51 passed`.

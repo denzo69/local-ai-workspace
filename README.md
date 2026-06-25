@@ -15,7 +15,7 @@ It is designed as a portfolio-grade AI engineering project: it demonstrates not 
 - Adding AI evals, prompt-injection checks, tool risk policies, and release readiness checks.
 - Writing a portfolio-friendly open-source project surface: README, QUICKSTART, SECURITY, CONTRIBUTING, CI, issue templates, and changelog.
 
-## What this demonstrates to employers
+## Engineering skills demonstrated
 
 Local AI Workspace demonstrates practical AI engineering rather than only prompt experimentation:
 
@@ -60,11 +60,17 @@ More detail: [docs/architecture.md](docs/architecture.md)
 
 ## Screenshots
 
-The current portfolio screenshots are:
+The interface is browser-based and can be accessed from both desktop and mobile devices over a trusted local network or secure remote connection.
+
+The same Local AI Workspace runs as one local AI service and can be opened from multiple devices:
+
+**Desktop browser view on the local workstation**
 
 ![Local AI Workspace desktop chat view](docs/screenshots/chat-desktop.png)
 
-![Local AI Workspace mobile browser view](docs/screenshots/mobile-browser.jpg)
+**Mobile browser access to the same local AI workspace over a trusted network**
+
+![Local AI Workspace mobile browser access](docs/screenshots/mobile-browser.jpg)
 
 More screenshot notes: [docs/screenshots/README.md](docs/screenshots/README.md).
 
