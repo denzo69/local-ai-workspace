@@ -6,3 +6,4 @@ python-multipart
 rich
 pytest
 pytest-cov
+httpx2
