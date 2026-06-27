@@ -589,6 +589,15 @@
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
+    function cleanAssistantReply(text) {
+        let value = String(text || "");
+        value = value.replace(/\n+Totuusraja:[\s\S]*?(?=\n+Suositeltu seuraava vaihe:|\n+Välimuisti:|$)/g, "");
+        value = value.replace(/\n+Suositeltu seuraava vaihe:[\s\S]*?(?=\n+Välimuisti:|$)/g, "");
+        value = value.replace(/\n+Välimuisti:\s*`?[^`\n]+`?/g, "");
+        value = value.replace(/\n+Hakutulos tallennettiin paikalliseen hakuvälimuistiin\./g, "");
+        return value.trim();
+    }
+
     function addChatActions(actions) {
         if (!Array.isArray(actions) || !actions.length) return;
         const chatBox = document.getElementById("chatBox");
@@ -778,7 +787,7 @@ async function sendChat() {
             const data = await response.json();
 
             if (response.ok) {
-                const replyText = (data.reply || data.response || data.answer || data.message || "").trim();
+                const replyText = cleanAssistantReply(data.reply || data.response || data.answer || data.message || "");
                 if (!replyText) {
                     const debugPayload = JSON.stringify(data, null, 2);
                     addChatLine(
