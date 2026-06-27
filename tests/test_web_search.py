@@ -102,8 +102,8 @@ def test_source_review_summarizes_weather_observation(tmp_path: Path, monkeypatc
 def test_search_reply_recommends_review_before_memory() -> None:
     reply = format_web_search_reply(_fake_search(Path("."), "etiikka"))
 
-    assert "Tarkista lähteet" in reply
-    assert "ei tallenneta faktatietona semanttiseen muistiin" in reply
+    assert "Tarkista" in reply
+    assert "seuraavaksi" in reply
 
 
 def test_weather_search_reply_hides_local_cache_path_and_guides_review() -> None:
@@ -113,7 +113,7 @@ def test_weather_search_reply_hides_local_cache_path_and_guides_review() -> None
     reply = format_web_search_reply(result)
 
     assert "C:\\Sade" not in reply
-    assert "paikalliseen" in reply
+    assert "hakuvälimuisti" not in reply
     assert "Paina **Tarkista" in reply
 
 

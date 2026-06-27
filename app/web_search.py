@@ -613,13 +613,8 @@ def format_web_search_reply(result: Dict[str, Any]) -> str:
             lines.append(f"   - Katkelma: {snippet[:300]}")
         lines.append("")
 
-    lines.extend([
-        "Totuusraja: nämä ovat hakutuloksia. Varsinainen vastaus pitää muodostaa lähteiden perusteella ja epävarmuus säilyttäen.",
-        "",
-        "Suositeltu seuraava vaihe: **Tarkista lähteet**. Hakutuloskatkelmia ei tallenneta faktatietona semanttiseen muistiin.",
-    ])
-    if result.get("cache_path"):
-        lines.append("Hakutulos tallennettiin paikalliseen hakuvälimuistiin.")
+    if not _looks_like_weather_query(str(result.get("query") or "")):
+        lines.append("Voit pyytää seuraavaksi: **Tarkista lähteet**.")
 
     return "\n".join(lines).strip()
 
