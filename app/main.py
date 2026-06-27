@@ -9,6 +9,7 @@ from typing import Dict, Optional, List
 import json
 import hmac
 import os
+import subprocess
 import urllib.request
 import urllib.error
 import shutil
@@ -144,8 +145,10 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="Local AI Workspace", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
 PROJECT_PATH = Path(__file__).resolve().parent
+REPO_ROOT = PROJECT_PATH.parent
 BASE_PATH = PROJECT_PATH
 CONFIG_PATH = PROJECT_PATH / "config.json"
+VERSION_PATH = REPO_ROOT / "VERSION"
 
 MEMORY_PATH = PROJECT_PATH / "memory"
 SADE_MEMORY_PATH = MEMORY_PATH / "sade_memory.md"
@@ -526,6 +529,42 @@ Tyyli:
 """,
             encoding="utf-8"
         )
+
+def get_version() -> str:
+    if not VERSION_PATH.exists():
+        return "0.0.0-dev"
+
+    version = VERSION_PATH.read_text(encoding="utf-8").strip()
+    return version or "0.0.0-dev"
+
+
+def get_git_commit() -> str:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+    except Exception:
+        return "unknown"
+
+    commit = result.stdout.strip()
+    return commit or "unknown"
+
+
+SERVER_STARTED_AT = datetime.now().isoformat(timespec="seconds")
+
+
+def build_info() -> Dict[str, str]:
+    return {
+        "version": get_version(),
+        "build": get_git_commit(),
+        "backend_started": SERVER_STARTED_AT,
+    }
+
 
 def read_markdown_file(path: Path):
     if not path.exists():
@@ -1115,6 +1154,7 @@ def update_config(request: ConfigUpdateRequest):
 @app.get("/health")
 def health():
     config = load_config()
+    info = build_info()
 
     return {
         "ok": True,
@@ -1122,7 +1162,11 @@ def health():
         "model": config.get("ollama_model", "gpt-oss:20b"),
         "temperature": config.get("temperature", 0.7),
         "num_ctx": config.get("num_ctx", 8192),
-        "time": datetime.now().isoformat(timespec="seconds")
+        "time": datetime.now().isoformat(timespec="seconds"),
+        "version": info["version"],
+        "build": info["build"],
+        "backend_started": info["backend_started"],
+        "build_info": info,
     }
 
 @app.get("/system/status")
@@ -1151,6 +1195,7 @@ def system_status():
         "ok": True,
         "server": "running",
         "time": datetime.now().isoformat(timespec="seconds"),
+        "build_info": build_info(),
         "project": dir_info(PROJECT_PATH),
         "memory": dir_info(MEMORY_PATH),
         "sade_memory": file_info(SADE_MEMORY_PATH),

@@ -301,6 +301,7 @@
                 <div class="runtime-status">
                     <span class="status-chip" id="ollamaStatus">Ollama: checking...</span>
                     <span class="status-chip" id="configInfo">Loading settings...</span>
+                    <span class="status-chip" id="buildInfo">Version: loading...</span>
                     <button class="logout-button" type="button" onclick="logoutSade()">Log out</button>
                 </div>
             </header>
@@ -946,6 +947,33 @@ async function loadConfigInfo() {
     }
 }
 
+async function loadBuildInfo() {
+    const infoBox = document.getElementById("buildInfo");
+    if (!infoBox) {
+        return;
+    }
+
+    try {
+        const response = await fetch("/health?ts=" + Date.now());
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+            infoBox.innerText = "Version: unavailable";
+            return;
+        }
+
+        const version = data.version || data.build_info?.version || "unknown";
+        const build = data.build || data.build_info?.build || "unknown";
+        const started = data.backend_started || data.build_info?.backend_started || "unknown";
+
+        infoBox.innerText = "Version: v" + version + " / build: " + build;
+        infoBox.title = "Backend started: " + started;
+    } catch (error) {
+        infoBox.innerText = "Version: connection error";
+        console.error("loadBuildInfo error:", error);
+    }
+}
+
 async function loadSystemPrompt() {
     const promptBox = document.getElementById("systemPromptText");
 
@@ -1033,6 +1061,7 @@ async function saveConfigSettings() {
             document.getElementById("status").innerText = "Settings saved.";
             applyUiLanguage(uiLanguage);
             loadConfigInfo();
+            loadBuildInfo();
             checkOllamaStatus();
         } else {
             document.getElementById("status").innerText = "Saving settings failed: " + JSON.stringify(data);
@@ -1397,6 +1426,7 @@ async function loadLanguageStatus() {
 window.addEventListener("DOMContentLoaded", function () {
     initializeWorkspace();
     loadConfigInfo();
+    loadBuildInfo();
     checkOllamaStatus();
     document.getElementById("chatMessage").focus();
 });

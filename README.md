@@ -77,10 +77,11 @@ More screenshot notes: [docs/screenshots/README.md](docs/screenshots/README.md).
 ## Quickstart
 
 ```powershell
-cd C:\Sade\Sade-v1
+git clone https://github.com/denzo69/sade-v1-local.git
+cd sade-v1-local
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\app\create_sade_user.bat
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8080
+.\app\restart_local_ai_workspace.bat
 ```
 
 Open:
@@ -100,9 +101,9 @@ More detail: [QUICKSTART.md](QUICKSTART.md)
 Current local status:
 
 ```text
-85 passed
-coverage: 62%
-release_readiness: ok true
+96 passed locally
+coverage: run pytest-cov locally with the command below
+GitHub Actions: passing
 ```
 
 Coverage locally:
