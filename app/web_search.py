@@ -355,10 +355,89 @@ def brave_search(query: str, *, max_results: int = DEFAULT_MAX_RESULTS, timeout:
     return results
 
 
+def google_search(query: str, *, max_results: int = DEFAULT_MAX_RESULTS, timeout: int = DEFAULT_TIMEOUT) -> List[WebSearchResult]:
+    """
+    Google Programmable Search / Custom Search JSON API provider.
+
+    Requires GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID.
+    """
+    api_key = os.environ.get("GOOGLE_SEARCH_API_KEY", "").strip()
+    engine_id = (
+        os.environ.get("GOOGLE_SEARCH_ENGINE_ID", "").strip()
+        or os.environ.get("GOOGLE_CSE_ID", "").strip()
+    )
+    if not api_key:
+        raise RuntimeError("GOOGLE_SEARCH_API_KEY is missing.")
+    if not engine_id:
+        raise RuntimeError("GOOGLE_SEARCH_ENGINE_ID is missing.")
+
+    params = urllib.parse.urlencode({
+        "key": api_key,
+        "cx": engine_id,
+        "q": query,
+        "num": str(max(1, min(max_results, 10))),
+    })
+    url = f"https://www.googleapis.com/customsearch/v1?{params}"
+    raw = _http_get(url, timeout=timeout, headers={"Accept": "application/json"})
+    data = json.loads(raw)
+
+    results: List[WebSearchResult] = []
+    for index, item in enumerate((data or {}).get("items") or [], start=1):
+        result = WebSearchResult(
+            title=(item.get("title") or "").strip(),
+            url=(item.get("link") or "").strip(),
+            snippet=(item.get("snippet") or "").strip(),
+            source=domain_from_url(item.get("link") or ""),
+            rank=index,
+        )
+        if result.title and result.url:
+            results.append(result)
+
+    return results[:max_results]
+
+
 def choose_provider() -> str:
+    configured = os.environ.get("SADE_WEB_SEARCH_PROVIDER", "auto").strip().lower()
+    aliases = {
+        "duckduckgo": "duckduckgo_lite",
+        "ddg": "duckduckgo_lite",
+        "google_custom_search": "google",
+        "google_cse": "google",
+    }
+    configured = aliases.get(configured, configured)
+    if configured and configured != "auto":
+        return configured
+
+    if (
+        os.environ.get("GOOGLE_SEARCH_API_KEY", "").strip()
+        and (os.environ.get("GOOGLE_SEARCH_ENGINE_ID", "").strip() or os.environ.get("GOOGLE_CSE_ID", "").strip())
+    ):
+        return "google"
     if os.environ.get("BRAVE_SEARCH_API_KEY", "").strip():
         return "brave"
     return "duckduckgo_lite"
+
+
+def configured_providers() -> Dict[str, Any]:
+    return {
+        "selected": choose_provider(),
+        "available": {
+            "duckduckgo_lite": True,
+            "brave": bool(os.environ.get("BRAVE_SEARCH_API_KEY", "").strip()),
+            "google": bool(
+                os.environ.get("GOOGLE_SEARCH_API_KEY", "").strip()
+                and (os.environ.get("GOOGLE_SEARCH_ENGINE_ID", "").strip() or os.environ.get("GOOGLE_CSE_ID", "").strip())
+            ),
+            "bing": False,
+        },
+        "configured": os.environ.get("SADE_WEB_SEARCH_PROVIDER", "auto").strip().lower() or "auto",
+        "notes": {
+            "duckduckgo_lite": "No API key required; best-effort fallback.",
+            "brave": "Requires BRAVE_SEARCH_API_KEY.",
+            "google": "Requires GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID.",
+            "bing": "Use Azure AI Foundry Grounding with Bing as a future integration; legacy Bing Search APIs are retired.",
+        },
+    }
 
 
 def web_search_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
@@ -384,6 +463,7 @@ def web_search_status(project_root: Optional[Path] = None) -> Dict[str, Any]:
         "enabled": True,
         "module": "app/web_search.py",
         "provider": choose_provider(),
+        "providers": configured_providers(),
         "direct_chat_integration": True,
         "automatic_search": False,
         "rag_integration": False,
@@ -436,6 +516,8 @@ def web_search(
     try:
         if selected == "brave":
             results = brave_search(query, max_results=max_results)
+        elif selected == "google":
+            results = google_search(query, max_results=max_results)
         elif selected == "duckduckgo_lite":
             results = duckduckgo_lite_search(query, max_results=max_results)
         else:

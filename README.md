@@ -130,6 +130,25 @@ Try these in order:
 6. Create a backup archive.
 7. Check audit status.
 
+## Web search providers
+
+Web search is provider-based. By default, the app uses `SADE_WEB_SEARCH_PROVIDER=auto`:
+
+1. Google Programmable Search if `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID` are configured.
+2. Brave Search if `BRAVE_SEARCH_API_KEY` is configured.
+3. DuckDuckGo Lite as a no-key best-effort fallback.
+
+Supported values:
+
+```text
+SADE_WEB_SEARCH_PROVIDER=auto
+SADE_WEB_SEARCH_PROVIDER=duckduckgo
+SADE_WEB_SEARCH_PROVIDER=brave
+SADE_WEB_SEARCH_PROVIDER=google
+```
+
+Bing is documented as a future Azure AI Foundry / Grounding with Bing integration rather than using the retired legacy Bing Search APIs.
+
 ## Key routes
 
 | Route | Purpose |
