@@ -675,6 +675,39 @@ def test_chat_factual_question_auto_routes_to_web_search(isolated_main: Path, mo
     client.close()
 
 
+def test_chat_recipe_instruction_auto_routes_to_web_search(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_search(_root: Path, query: str, max_results: int = 6):
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "test",
+            "results": [
+                {
+                    "rank": 1,
+                    "title": "Pullataikina resepti",
+                    "url": "https://example.test/pullataikina",
+                    "source": "example.test",
+                    "snippet": "Pullataikinan ohje ja ainesosat.",
+                }
+            ],
+        }
+
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post("/chat", json={"message": "Hae pullataikinan ohje"}, headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "Pullataikina resepti" in body["reply"]
+    assert "Git" not in body["reply"]
+
+    client.close()
+
+
 def test_chat_model_provider_empty_response_falls_back_to_web_search(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_search(_root: Path, query: str, max_results: int = 6):
         return {

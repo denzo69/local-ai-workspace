@@ -2,6 +2,18 @@
 
 All notable changes to Local AI Workspace are documented here.
 
+## [0.1.5-recipe-search-routing] - 2026-06-28
+
+### Added
+
+- Added automatic web-search routing for recipe and practical instruction questions, including prompts such as `Hae pullataikinan ohje`.
+- Added regression tests to prevent recipe/instruction prompts from falling through to unrelated model answers such as Git pull instructions.
+
+### Testing
+
+- Local test status: `161 passed`.
+- Total coverage: `85%`.
+
 ## [0.1.4-automatic-factual-search] - 2026-06-28
 
 ### Added

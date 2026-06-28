@@ -946,10 +946,19 @@ def is_automatic_web_search_request(message: str) -> bool:
         "varaosa", "part number", "ohjekirja", "manual", "laki", "law",
         "asetus", "regulation", "uutinen", "news", "tutkimus", "research",
         "raportti", "report", "arvostelu", "review", "vertailu", "comparison",
+        "resepti", "recipe", "ruokaohje", "ohje", "instructions", "miten tehdään",
+        "miten tehdaan", "miten teen", "valmistus", "ainesosat", "ingredients",
+        "taikina", "pullataikina", "pulla", "leivonta", "baking", "ruoka", "food",
+    )
+    recipe_terms = (
+        "resepti", "recipe", "ruokaohje", "pullataikina", "taikina",
+        "pulla", "leivonta", "baking", "ainesosat", "ingredients",
     )
 
     has_question_word = any(ascii_text.startswith(term) or f" {term} " in f" {ascii_text} " for term in interrogatives)
     has_factual_term = any(_ascii_finnish(term) in ascii_text for term in factual_terms)
+    has_recipe_term = any(_ascii_finnish(term) in ascii_text for term in recipe_terms)
+    asks_for_instructions = any(term in ascii_text for term in ("ohje", "miten tehdaan", "miten teen", "valmistus"))
     has_model_like_token = bool(re.search(r"\b[a-z]{2,}\s*[-]?\s*\d{2,}[a-z0-9-]*\b|\b\d{4}[a-z]?\b", ascii_text))
 
     if is_current_info_request(message):
@@ -959,6 +968,9 @@ def is_automatic_web_search_request(message: str) -> bool:
         return True
 
     if has_question_word and (has_factual_term or has_model_like_token):
+        return True
+
+    if has_recipe_term and (asks_for_instructions or has_question_word or question_mark):
         return True
 
     return False

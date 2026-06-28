@@ -171,6 +171,18 @@ def test_factual_product_question_routes_to_web_search(tmp_path: Path, monkeypat
     assert route_tool_preview(message)["tool"] == "web_search"
 
 
+def test_recipe_instruction_question_routes_to_web_search(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("app.web_search.web_search", _fake_search)
+
+    message = "Hae pullataikinan ohje"
+    result = route_tool_request(tmp_path, message)
+
+    assert result["handled"] is True
+    assert result["tool"] == "web_search"
+    assert result["result"]["query"] == message
+    assert route_tool_preview(message)["tool"] == "web_search"
+
+
 def test_web_search_provider_selection_prefers_google_when_configured(monkeypatch) -> None:
     monkeypatch.delenv("SADE_WEB_SEARCH_PROVIDER", raising=False)
     monkeypatch.delenv("BRAVE_SEARCH_API_KEY", raising=False)
