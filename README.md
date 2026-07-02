@@ -1,48 +1,48 @@
 # Local AI Workspace
 
-[![Tests](https://github.com/denzo69/local-ai-workspace/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/denzo69/local-ai-workspace/actions/workflows/tests.yml)
+![Tests](https://github.com/denzo69/local-ai-workspace/actions/workflows/tests.yml/badge.svg)
 
-Local AI Workspace is a local-first AI assistant project demonstrating modern AI engineering practices: FastAPI, local LLM integration, memory, retrieval, testing, security, and maintainable architecture.
+Local AI Workspace is a local-first AI assistant project demonstrating practical AI engineering with FastAPI, local LLM integration, memory, retrieval, testing, security and maintainable architecture.
 
-It is designed as a portfolio-grade AI engineering project: it demonstrates not only model interaction, but also testability, memory governance, tool permissions, prompt-injection awareness, authentication, and release hygiene.
+It is designed as a portfolio-stage project. The focus is not only on model interaction, but also on testability, memory governance, tool permissions, prompt-injection awareness, authentication, observability and release hygiene.
 
 ## What this project demonstrates
 
-- Building a local AI assistant with FastAPI and a browser UI.
+- Building a local AI assistant with FastAPI and a browser-based UI.
 - Designing memory and RAG workflows with explicit truth boundaries.
 - Separating user-facing features from advanced developer tools.
-- Implementing authentication, CSRF protection, audit logging, and backup workflows.
-- Adding AI evals, prompt-injection checks, tool risk policies, and release readiness checks.
-- Using deterministic safety and portfolio smoke-test routing for high-risk or project-identity prompts.
+- Implementing authentication, CSRF protection, audit logging and backup workflows.
+- Adding AI evals, prompt-injection checks, tool risk policies and release readiness checks.
+- Using deterministic safety routing for high-risk prompts and project-identity smoke tests.
 - Presenting operational health through a sanitized dashboard that hides local paths from normal use.
-- Writing a portfolio-friendly open-source project surface: README, QUICKSTART, SECURITY, CONTRIBUTING, CI, issue templates, and changelog.
+- Maintaining a portfolio-friendly open-source project surface with README, QUICKSTART, SECURITY, CONTRIBUTING, CI, issue templates and changelog.
 
 ## Engineering skills demonstrated
 
 Local AI Workspace demonstrates practical AI engineering rather than only prompt experimentation:
 
 - local AI application architecture with FastAPI;
-- authentication, CSRF protection, audit logging, and guarded file tools;
-- RAG, semantic memory, web-search truth boundaries, and AI eval entrypoints;
-- deterministic safety routing for secret-file requests, destructive actions, missing-source claims, and portfolio smoke tests;
-- test-driven hardening with `pytest`, coverage reports, and release readiness checks;
+- authentication, CSRF protection, audit logging and guarded file tools;
+- RAG, semantic memory, web-search truth boundaries and AI eval entrypoints;
+- deterministic safety routing for secret-file requests, destructive actions, missing-source claims and portfolio smoke tests;
+- test-driven hardening with pytest, coverage reports and release readiness checks;
 - portfolio-quality documentation and a maintainable GitHub project surface.
 
 ## Highlights
 
-- **Local-first AI workspace** using Ollama through a model provider layer.
-- **Chat, memory, sources, and settings** as the user-facing UI.
-- **Finnish/English UI language switch** (`fi` / `en`).
-- **Memory governance**: list memories, export memory, guarded deletion API.
-- **RAG and source quality checks** for safer retrieval-assisted answers.
-- **Prompt injection detection** and tool risk classification.
-- **Deterministic safety routing** for secret-file requests, destructive actions, missing-source claims, and portfolio smoke tests.
-- **Audit log and debug trace** for safety and observability.
-- **Project Health Dashboard** with sanitized server, version, model, RAG, web search, audit, test, release, storage, and privacy status.
-- **Authentication** with local users, CSRF protection, and session cookies.
-- **Static and live AI eval entrypoints**.
-- **Backup/restore workflow** for local data.
-- **GitHub Actions CI** with pytest and coverage reporting.
+- Local-first AI workspace using Ollama through a model provider layer.
+- Chat, memory, sources and settings as the user-facing UI.
+- Finnish/English UI language switch.
+- Memory governance: list memories, export memory and guarded deletion API.
+- RAG and source quality checks for safer retrieval-assisted answers.
+- Prompt-injection detection and tool risk classification.
+- Deterministic safety routing for secret-file requests, destructive actions, missing-source claims and portfolio smoke tests.
+- Audit log and debug trace for safety and observability.
+- Project Health Dashboard with sanitized server, version, model, RAG, web search, audit, test, release, storage and privacy status.
+- Authentication with local users, CSRF protection and session cookies.
+- Static and live AI eval entrypoints.
+- Backup/restore workflow for local data.
+- GitHub Actions CI with pytest and coverage reporting.
 
 ## Architecture
 
@@ -67,13 +67,20 @@ More detail: [docs/architecture.md](docs/architecture.md)
 
 The interface is browser-based and can be accessed from both desktop and mobile devices over a trusted local network or secure remote connection.
 
-The same Local AI Workspace runs as one local AI service and can be opened from multiple devices:
+The same Local AI Workspace runs as one local AI service and can be opened from multiple devices.
 
-**Desktop browser view on the local workstation**
+Screenshots include:
+
+- Desktop browser view on the local workstation
+- Focused desktop app view
+- Mobile browser access over a trusted network
+- Mobile app-style preview
+
+**Focused desktop app view**
 
 ![Local AI Workspace desktop app-only view](docs/screenshots/desktop-clean.png)
 
-**Mobile browser access to the same local AI workspace over a trusted network**
+**Mobile app-style preview**
 
 ![Local AI Workspace mobile app-only preview](docs/screenshots/mobile-clean.jpg)
 
@@ -99,19 +106,20 @@ More detail: [QUICKSTART.md](QUICKSTART.md)
 
 ## Tests
 
+Run the test suite:
+
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
 Current local status:
 
-```text
-174 passed locally
-coverage: 88% total, with targeted hardening around auth/session safety, project health reporting, upload validation, manual AI behavior checks, RAG, web search, automatic factual/recipe search, model provider fallback, tool routing, API routes, live eval entrypoints, and dead-code cleanup
-GitHub Actions: passing
-```
+- 174 tests passing locally.
+- 88% total test coverage.
+- GitHub Actions: passing.
+- Targeted hardening covers auth/session safety, project health reporting, upload validation, manual AI behavior checks, RAG, web search, automatic factual-search routing, model provider fallback, tool routing, API routes, live eval entrypoints and cleanup paths.
 
-Coverage locally:
+Run coverage locally:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install pytest-cov
@@ -124,25 +132,28 @@ Release readiness:
 .\.venv\Scripts\python.exe scripts\release_readiness.py
 ```
 
-## Demo path
+## Suggested demo flow
 
 Try these in order:
 
 1. Open the UI and send a chat message.
-2. Add a memory in **Memory**.
-3. Upload a document in **Sources**.
+2. Add a memory in Memory.
+3. Upload a document in Sources.
 4. Search from sources in advanced tools.
 5. Run static evals.
 6. Create a backup archive.
 7. Check audit status.
+8. Open the Project Health Dashboard.
 
 ## Web search providers
 
-Web search is provider-based. By default, the app uses `SADE_WEB_SEARCH_PROVIDER=auto`:
+Web search is provider-based. By default, the app uses `SADE_WEB_SEARCH_PROVIDER=auto`.
 
-1. Google Programmable Search if `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID` are configured.
-2. Brave Search if `BRAVE_SEARCH_API_KEY` is configured.
-3. DuckDuckGo Lite as a no-key best-effort fallback.
+Provider selection:
+
+- Google Programmable Search if `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID` are configured.
+- Brave Search if `BRAVE_SEARCH_API_KEY` is configured.
+- DuckDuckGo Lite as a no-key best-effort fallback.
 
 Supported values:
 
@@ -174,8 +185,6 @@ Bing is documented as a future Azure AI Foundry / Grounding with Bing integratio
 
 ## Safety model
 
-Local AI Workspace is intended for local or trusted-network use. Do not expose it directly to the public internet.
-
 Safety principles:
 
 - Web results are sources, not automatic truth.
@@ -185,6 +194,14 @@ Safety principles:
 - Secrets, sessions, vector DBs, uploads, and backups are excluded from the public repo.
 
 See [SECURITY.md](SECURITY.md).
+
+## Known limitations
+
+- This project is intended for local or trusted-network use, not direct public internet exposure.
+- Web search returns sources and cautious summaries, but source claims are not automatically guaranteed as true.
+- Local model quality depends on the installed Ollama model.
+- Some internal names originate from the earlier Finnish prototype stage.
+- Production deployment would require additional hardening, monitoring, user management and operational review.
 
 ## Documentation
 

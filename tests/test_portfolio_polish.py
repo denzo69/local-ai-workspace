@@ -26,9 +26,10 @@ def test_readme_has_portfolio_sections() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "What this project demonstrates" in readme
     assert "Architecture" in readme
-    assert "Demo path" in readme
-    assert "passed" in readme
-    assert "coverage:" in readme
+    assert "Suggested demo flow" in readme
+    assert "174 tests passing locally" in readme
+    assert "88% total test coverage" in readme
+    assert "Known limitations" in readme
     assert "MIT License" in readme
 
 
