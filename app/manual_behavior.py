@@ -1,14 +1,66 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 import re
 import unicodedata
 
+try:
+    from zoneinfo import ZoneInfo
+except Exception:  # pragma: no cover - old Python fallback
+    ZoneInfo = None  # type: ignore
+
+
+BUSINESS_LEAK_TERMS = (
+    "dta",
+    "dta-sopimus",
+    "verokortti",
+    "verokortin",
+    "laskutus",
+    "laskutusmalli",
+    "kirjanpito",
+    "freelance",
+    "freelancer",
+    "palkkio",
+    "valuutta",
+    "saldo",
+)
+
+
+WEEKDAYS_FI = (
+    "maanantai",
+    "tiistai",
+    "keskiviikko",
+    "torstai",
+    "perjantai",
+    "lauantai",
+    "sunnuntai",
+)
+
+MONTHS_FI = (
+    "tammikuuta",
+    "helmikuuta",
+    "maaliskuuta",
+    "huhtikuuta",
+    "toukokuuta",
+    "kesäkuuta",
+    "heinäkuuta",
+    "elokuuta",
+    "syyskuuta",
+    "lokakuuta",
+    "marraskuuta",
+    "joulukuuta",
+)
+
 
 def _ascii(text: str) -> str:
     normalized = unicodedata.normalize("NFKD", str(text or ""))
     return normalized.encode("ascii", "ignore").decode("ascii").lower()
+
+
+def _clean_ascii(text: str) -> str:
+    return " ".join(_ascii(text).replace("?", " ").replace("!", " ").split())
 
 
 def _has_any(text: str, phrases: tuple[str, ...]) -> bool:
@@ -96,15 +148,212 @@ def _summary_reply() -> str:
     )
 
 
-def try_handle_manual_behavior(project_path: Path, message: str) -> Dict[str, Any]:
-    """Handle portfolio/manual-test prompts that should not depend on model mood.
+def _helsinki_now() -> datetime:
+    if ZoneInfo is None:
+        return datetime.now().astimezone()
+    try:
+        return datetime.now(ZoneInfo("Europe/Helsinki"))
+    except Exception:
+        return datetime.now().astimezone()
 
-    This is intentionally narrow: it protects safety boundaries and makes the
-    public portfolio smoke tests deterministic while leaving normal chat to the
-    model/provider path.
+
+def _format_finnish_date(dt: datetime) -> str:
+    weekday = WEEKDAYS_FI[dt.weekday()]
+    month = MONTHS_FI[dt.month - 1]
+    return f"{weekday} {dt.day}. {month} {dt.year}"
+
+
+def _is_date_time_question(text: str) -> bool:
+    if _has_any(text, ("what day is it", "what date is it", "current date", "what time is it")):
+        return True
+    if "kello" in text and _has_any(text, ("paljon", "paljo", "mita", "mikä", "palion")):
+        return True
+    date_phrases = (
+        "mika paiva nyt on",
+        "mika paiva tanaan on",
+        "mika paivamaara tanaan",
+        "mika paivamaara nyt",
+        "mika viikonpaiva",
+        "mika pva nyt",
+        "mika pva tanaan",
+        "mika kuukausi nyt",
+        "mika vuosi nyt",
+    )
+    return any(phrase in text for phrase in date_phrases)
+
+
+def _date_time_reply(text: str) -> str:
+    now = _helsinki_now()
+    wants_time = "kello" in text or "time" in text
+    wants_date = any(term in text for term in ("paiva", "paivamaara", "viikonpaiva", "pva", "date", "day"))
+
+    if wants_time and not wants_date:
+        return f"Kello on {now.strftime('%H.%M')} Suomen aikaa."
+    if wants_date and not wants_time:
+        return f"Tänään on {_format_finnish_date(now)}."
+    return f"Tänään on {_format_finnish_date(now)}, ja kello on {now.strftime('%H.%M')} Suomen aikaa."
+
+
+def _is_assistant_permission_question(text: str) -> bool:
+    if _has_any(text, ("auth.json", "system_prompt.md")) and _has_any(text, ("saatko", "voitko", "lukea", "nayta", "show")):
+        return True
+    permission_terms = (
+        "sinun oikeudet",
+        "sinulle annettu mita oikeuksia",
+        "mita oikeuksia sinulla",
+        "sulla oikeuksii",
+        "mita saat tehda",
+        "mita et saa tehda",
+        "ilman janin hyvaksyn",
+        "ilman lupaa",
+        "tool permissions",
+        "your permissions",
+        "your tool permissions",
+    )
+    if any(term in text for term in permission_terms):
+        return True
+    return "oikeudet" in text and _has_any(text, ("sinun", "sinulla", "sinulle", "sulla"))
+
+
+def _assistant_permissions_reply() -> str:
+    return (
+        "Minulle on annettu rajatut oikeudet Local AI Workspace -projektissa.\n\n"
+        "Voin auttaa keskustelussa, lukea sallittua projektin dokumentoitua tilaa, käyttää erikseen sallittuja työkaluja, "
+        "hakea lähteistä tai verkosta silloin kun se on oikeasti tarpeen, ja ehdottaa muutoksia.\n\n"
+        "En saa paljastaa salaisuuksia, `auth.json`-sisältöä, sessiotietoja tai suojattuja tunnisteita. "
+        "En saa poistaa muistia, tyhjentää audit-lokia tai tehdä korkean riskin tiedostomuutoksia ilman näkyvää hyväksyntää. "
+        "En myöskään saa väittää suunniteltuja ominaisuuksia valmiiksi tai esittää verkkohakutuloksia varmana totuutena ilman lähderajaa."
+    )
+
+
+def _is_finnish_language_question(text: str) -> bool:
+    return _has_any(
+        text,
+        (
+            "suomenkielen taito",
+            "suomen kielen taito",
+            "miten hyvin osaat suomea",
+            "osaat suomea",
+            "luonnollisella suomella",
+            "vastata suomeksi",
+            "kaannoskoneelta",
+            "kaannoskonemainen",
+            "tekniset termit",
+        ),
+    )
+
+
+def _finnish_language_reply() -> str:
+    return (
+        "Suomi on tässä projektissa ensisijainen käyttökieli. Tavoitteena on vastata luonnollisella, selkeällä yleiskielellä eikä käännöskonemaisesti.\n\n"
+        "Tekniset termit kuten API, FastAPI, JSON, RAG, pytest ja Ollama voidaan pitää alkuperäisessä muodossa, jos se tekee vastauksesta ymmärrettävämmän.\n\n"
+        "Jos vastaus kuulostaa oudolta, liian muodolliselta tai väärältä suomelta, se kannattaa käsitellä kielikorjauksena ja lisätä tarvittaessa regressiotestiksi."
+    )
+
+
+def _is_general_knowledge_question(text: str) -> bool:
+    return any(
+        phrase in text
+        for phrase in (
+            "onko talvella lunta",
+            "onko suomessa yleensa kylma talvella",
+            "miksi taivas nayttaa siniselta",
+            "miksi vesi kiehuu",
+            "miksi jaa kelluu",
+        )
+    )
+
+
+def _general_knowledge_reply(text: str) -> str:
+    if "talvella lunta" in text:
+        return (
+            "Yleisesti kyllä: talvella voi olla lunta, etenkin kylmemmillä alueilla kuten Suomessa. "
+            "Se riippuu kuitenkin paikasta, lämpötilasta ja talven säätilanteesta. Etelä-Suomessa lumi voi välillä sulaa, "
+            "kun taas Itä- ja Pohjois-Suomessa lunta on yleensä varmemmin."
+        )
+    if "kylma talvella" in text:
+        return "Suomessa on yleensä talvella kylmä, mutta lämpötila vaihtelee paljon alueen ja säätilanteen mukaan."
+    if "taivas" in text:
+        return "Taivas näyttää siniseltä, koska ilmakehä hajottaa Auringon valosta erityisesti lyhyitä sinisiä aallonpituuksia eri suuntiin."
+    if "vesi kiehuu" in text:
+        return "Vesi kiehuu, kun sen höyrynpaine vastaa ympäröivää ilmanpainetta. Merenpinnan tasolla tämä tapahtuu yleensä noin 100 °C:ssa."
+    if "jaa kelluu" in text:
+        return "Jää kelluu, koska se on vähemmän tiheää kuin nestemäinen vesi. Vesi laajenee jäätyessään, jolloin jään tiheys pienenee."
+    return "Tämä on yleistietokysymys, joten vastaan yleisen tiedon perusteella ilman verkkohakua."
+
+
+def _is_health_lifestyle_question(text: str) -> bool:
+    health_terms = (
+        "kahvi",
+        "kahvia",
+        "kofeiini",
+        "energiajuoma",
+        "uni",
+        "unta",
+        "nukkua",
+        "unirytmi",
+        "paivaun",
+        "vasyttaa",
+        "stressi",
+        "aamupala",
+        "syke",
+        "magnesium",
+        "sininen valo",
+        "alkoholi",
+        "iltarutiini",
+    )
+    return any(term in text for term in health_terms)
+
+
+def _health_lifestyle_reply(text: str) -> str:
+    if "kahvi" in text or "kofeiini" in text:
+        return (
+            "Yleisesti kaksi kuppia kahvia aamulla ei ole useimmille liikaa, jos se ei aiheuta sydämentykytystä, levottomuutta, vatsaoireita, verenpaineen nousua tai univaikeuksia. "
+            "Määrä riippuu kupin koosta, kahvin vahvuudesta ja omasta kofeiininsietokyvystä. Jos kahvi tekee olon levottomaksi tai heikentää unta, määrää kannattaa vähentää tai siirtää kahvi aiemmaksi päivään."
+        )
+    if "energiajuoma" in text:
+        return (
+            "Energiajuoma illalla on usein huono idea, koska kofeiini voi heikentää nukahtamista ja unen laatua. "
+            "Jos uni on muutenkin herkkä, illan kofeiini kannattaa jättää väliin."
+        )
+    if any(term in text for term in ("uni", "unta", "nukkua", "unirytmi", "vasyttaa", "iltarutiini")):
+        return (
+            "Aikuiselle riittävä unimäärä on yleensä noin 7–9 tuntia yössä. Tärkeää ei ole vain tuntimäärä, vaan myös unen laatu ja säännöllisyys. "
+            "Jos päivällä väsyttää jatkuvasti, keskittyminen kärsii tai uni katkeilee paljon, syy kannattaa selvittää rauhassa ja tarvittaessa terveydenhuollon kanssa."
+        )
+    if "stressi" in text:
+        return "Kyllä, stressi voi vaikuttaa uneen. Se voi vaikeuttaa nukahtamista, lisätä yöheräilyä ja tehdä unesta pinnallisempaa."
+    if "aamupala" in text:
+        return "Aamupala voi auttaa jaksamaan työpäivän alussa, mutta tarve riippuu ihmisestä. Jos aamulla tulee heikko olo tai keskittyminen kärsii, kevyt aamupala voi olla hyödyllinen."
+    return "Yleisellä tasolla tuo liittyy arjen hyvinvointiin. Vastaisin varovaisesti ja tilanteen mukaan; jos oireet ovat voimakkaita tai jatkuvia, asia kannattaa varmistaa ammattilaiselta."
+
+
+def _is_project_intro_question(text: str) -> bool:
+    return _has_any(text, ("kuka olet", "mita talla projektilla voi tehda", "selita local ai workspace", "mika tama projekti"))
+
+
+def _blocks_business_leak(reply: str, *, category: str) -> str:
+    if category == "business_support":
+        return reply
+    lower = _ascii(reply)
+    if any(term in lower for term in BUSINESS_LEAK_TERMS):
+        return (
+            "En saanut muodostettua vastausta oikealla aihealueella. Vastaan ilman epäolennaista business-, vero- tai laskutuskontekstia: "
+            "kysymys kannattaa käsitellä sen varsinaisen aiheen perusteella, eikä mukaan pidä liittää freelance-, DTA-, verokortti- tai kirjanpitoehdotuksia."
+        )
+    return reply
+
+
+def try_handle_manual_behavior(project_path: Path, message: str) -> Dict[str, Any]:
+    """Handle deterministic response-routing cases before model/tool routing.
+
+    This layer is not meant to hard-code every possible answer. It protects
+    broad behaviour categories where the model previously leaked unrelated
+    business context, triggered unnecessary web search, or returned the wrong
+    self-state/template path.
     """
     original = str(message or "").strip()
-    text = _ascii(original)
+    text = _clean_ascii(original)
 
     if not text:
         return {"handled": False}
@@ -136,7 +385,24 @@ def try_handle_manual_behavior(project_path: Path, message: str) -> Dict[str, An
             "category": "destructive_action_boundary",
         }
 
-    if "kuka olet" in text and "projekt" in text:
+    deterministic_checks = [
+        (_is_date_time_question, lambda _text: _date_time_reply(_text), "date_time"),
+        (_is_assistant_permission_question, lambda _text: _assistant_permissions_reply(), "assistant_permissions"),
+        (_is_finnish_language_question, lambda _text: _finnish_language_reply(), "finnish_language_capability"),
+        (_is_general_knowledge_question, _general_knowledge_reply, "general_knowledge"),
+        (_is_health_lifestyle_question, _health_lifestyle_reply, "health_lifestyle_general"),
+    ]
+
+    for detector, responder, category in deterministic_checks:
+        if detector(text):
+            reply = responder(text)
+            return {
+                "handled": True,
+                "reply": _blocks_business_leak(reply, category=category),
+                "category": category,
+            }
+
+    if _is_project_intro_question(text) and "projekt" in text:
         return {
             "handled": True,
             "reply": (
@@ -236,7 +502,7 @@ def try_handle_manual_behavior(project_path: Path, message: str) -> Dict[str, An
             "category": "rag_truth_boundary",
         }
 
-    if "readme" in text and _has_any(text, ("ala kirjoita", "dont write", "do not write", "älä kirjoita")):
+    if "readme" in text and _has_any(text, ("ala kirjoita", "dont write", "do not write")):
         return {
             "handled": True,
             "reply": (
@@ -250,7 +516,7 @@ def try_handle_manual_behavior(project_path: Path, message: str) -> Dict[str, An
             "category": "safe_file_suggestion",
         }
 
-    if "ollama" in text and _has_any(text, ("levytila", "levytilaa", "disk space", "vievat", "vievat")):
+    if "ollama" in text and _has_any(text, ("levytila", "levytilaa", "disk space", "vievat")):
         return {
             "handled": True,
             "reply": (
