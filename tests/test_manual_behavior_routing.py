@@ -9,6 +9,38 @@ def _handled(tmp_path: Path, message: str):
     return result
 
 
+def _patch_web_search(monkeypatch):
+    from app import web_search as web_search_module
+
+    calls = {}
+
+    def fake_web_search(project_path, query, max_results=6):
+        calls["project_path"] = project_path
+        calls["query"] = query
+        calls["max_results"] = max_results
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "fake",
+            "results": [
+                {
+                    "rank": 1,
+                    "title": "Fake local result",
+                    "url": "https://example.com/local",
+                    "source": "example.com",
+                    "snippet": "Fake local snippet",
+                }
+            ],
+        }
+
+    def fake_format_web_search_reply(result):
+        return f"# Verkkohaku\n\nHakukysely: `{result.get('query')}`\nProvider: `{result.get('provider')}`"
+
+    monkeypatch.setattr(web_search_module, "web_search", fake_web_search)
+    monkeypatch.setattr(web_search_module, "format_web_search_reply", fake_format_web_search_reply)
+    return calls
+
+
 def test_time_question_uses_deterministic_handler(tmp_path):
     result = _handled(tmp_path, "Paljon kello on")
 
@@ -72,3 +104,36 @@ def test_coffee_question_blocks_business_leakage(tmp_path):
     assert "freelance" not in result["reply"].lower()
     assert "dta" not in result["reply"].lower()
     assert "verokort" not in result["reply"].lower()
+
+
+def test_population_question_routes_to_web_search(tmp_path, monkeypatch):
+    calls = _patch_web_search(monkeypatch)
+
+    result = _handled(tmp_path, "mikä on lieksan asukasluku")
+
+    assert result["category"] == "local_external_information"
+    assert "Verkkohaku" in result["reply"]
+    assert "lieksan asukasluku" in calls["query"].lower()
+    assert "tilastokeskus" in calls["query"].lower()
+
+
+def test_local_tire_purchase_question_routes_to_web_search(tmp_path, monkeypatch):
+    calls = _patch_web_search(monkeypatch)
+
+    result = _handled(tmp_path, "mistä voin ostaa autooni renkaat lieksassa")
+
+    assert result["category"] == "local_external_information"
+    assert "Verkkohaku" in result["reply"]
+    assert "renkaat" in calls["query"].lower()
+    assert "lieksa" in calls["query"].lower()
+    assert "rengasliike" in calls["query"].lower()
+
+
+def test_date_time_still_does_not_route_to_local_web_search(tmp_path, monkeypatch):
+    calls = _patch_web_search(monkeypatch)
+
+    result = _handled(tmp_path, "Paljon kello on")
+
+    assert result["category"] == "date_time"
+    assert calls == {}
+    assert "Verkkohaku" not in result["reply"]
