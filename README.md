@@ -103,8 +103,8 @@ More detail: [QUICKSTART.md](QUICKSTART.md)
 Current local status:
 
 ```text
-173 passed locally
-coverage: 88% total, with targeted hardening around auth/session safety, project health reporting, upload validation, RAG, web search, automatic factual/recipe search, model provider fallback, tool routing, API routes, live eval entrypoints, and dead-code cleanup
+174 passed locally
+coverage: 88% total, with targeted hardening around auth/session safety, project health reporting, upload validation, manual AI behavior checks, RAG, web search, automatic factual/recipe search, model provider fallback, tool routing, API routes, live eval entrypoints, and dead-code cleanup
 GitHub Actions: passing
 ```
 

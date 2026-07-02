@@ -2,6 +2,24 @@
 
 All notable changes to Local AI Workspace are documented here.
 
+## [0.1.9-manual-ai-behavior-hardening] - 2026-07-02
+
+### Added
+
+- Added a narrow manual-behavior layer for portfolio smoke prompts, language checks, RAG explanations, memory recall, source-boundary checks, safe README suggestions, hallucination resistance, sanitized health summaries, and missing-source refusal.
+- Added a regression test that exercises the manual AI behavior checklist through the authenticated `/chat` route.
+
+### Changed
+
+- High-risk prompt-injection attempts targeting `system_prompt.md`, `auth.json`, session data or secrets are blocked before falling through to the model provider.
+- Destructive memory/audit-log deletion requests now receive a confirmation-boundary response instead of relying on the model to refuse.
+- Practical Ollama disk-usage guidance is answered with safe PowerShell commands and an explicit non-deletion warning.
+
+### Testing
+
+- Local test status: `174 passed`.
+- Total coverage: `88%`.
+
 ## [0.1.8-coverage-hardening] - 2026-07-02
 
 ### Added

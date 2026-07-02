@@ -63,6 +63,7 @@ from app.memory_governance import (
     export_memory_json,
     list_memory_entries,
 )
+from app.manual_behavior import try_handle_manual_behavior
 from app.live_evals import run_live_evals
 from app.model_provider import ModelProviderError, model_provider_status, provider_from_config
 from app.prompt_injection import analyze_prompt_injection, build_prompt_injection_guardrail
@@ -2731,6 +2732,30 @@ def chat(request: ChatRequest):
         )
     except Exception:
         pass
+
+    manual_behavior = try_handle_manual_behavior(PROJECT_PATH, request.message)
+    if manual_behavior.get("handled"):
+        reply = str(manual_behavior.get("reply") or "").strip()
+        try:
+            write_trace(
+                PROJECT_PATH,
+                event="chat_manual_behavior",
+                user_message=request.message,
+                route="manual_behavior",
+                decision=str(manual_behavior.get("category") or "handled"),
+                details={"category": manual_behavior.get("category")},
+            )
+        except Exception:
+            pass
+
+        append_chat_log(request.message, reply)
+
+        return ChatResponse(
+            ok=True,
+            reply=reply,
+            model=load_config().get("ollama_model", "gpt-oss:20b"),
+            time=datetime.now().isoformat(timespec="seconds"),
+        )
 
     memory_text = extract_memory_command(request.message)
 
