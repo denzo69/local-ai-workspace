@@ -148,9 +148,13 @@ def _coverage_from_readme(project_path: Path) -> str:
         if not path.exists():
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
-        match = re.search(r"coverage:\s*([0-9]+%)", text, flags=re.I)
+        match = re.search(
+            r"(?:coverage:\s*([0-9]+%)(?:\s+total)?|([0-9]+%)\s+(?:total\s+)?(?:test\s+)?coverage)",
+            text,
+            flags=re.I,
+        )
         if match:
-            return match.group(1)
+            return match.group(1) or match.group(2)
     return "unknown"
 
 
@@ -163,7 +167,7 @@ def _tests_from_readme(project_path: Path) -> str:
         if not path.exists():
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
-        match = re.search(r"([0-9]+)\s+passed locally", text, flags=re.I)
+        match = re.search(r"([0-9]+)\s+(?:tests\s+passing|passed)\s+locally", text, flags=re.I)
         if match:
             return match.group(1)
     return "unknown"

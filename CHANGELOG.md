@@ -2,6 +2,40 @@
 
 All notable changes to Local AI Workspace are documented here.
 
+## v0.1.5 — Response Planning Layer
+
+### Added
+
+- Response Planning Layer for intent routing before tool use.
+- Intent Planner for classifying date/time, assistant permissions, Self-State, general knowledge, health/lifestyle, business-support and current external information prompts.
+- Context Gate to prevent unrelated memory, Self-State or business-support leakage.
+- Response Contracts for allowed and forbidden behavior by intent.
+- Output Validator to catch obvious response mismatches before final output.
+- Regression tests for Finnish routing edge cases, web-search gating, Self-State gating and tool-use decisions.
+
+### Changed
+
+- Automatic web search now runs only when the planner marks the prompt as current, external or source-dependent.
+- Self-State output is limited to explicit Self-State, project status or technical status prompts.
+- Business-support suggestions are constrained to relevant work, freelance, invoicing, tax, contract or company setup prompts.
+- Improved manual behavior metric parsing for both old and current README wording.
+- Added targeted tests for tool permission edge cases, model-provider status reporting and audit-log invalid-input handling.
+
+### Verified
+
+- Date/time questions do not trigger web search.
+- General knowledge questions do not trigger web search unnecessarily.
+- Assistant permission questions route to tool/capability boundaries.
+- Finnish language capability questions no longer trigger Self-State output.
+- Health/lifestyle prompts do not receive unrelated business or tax suggestions.
+
+- Local test status: `197 passed`.
+- Total coverage: `89%`.
+
+### Notes
+
+This release reduces single-prompt patching by adding a general planning layer before response generation.
+
 ## v0.1.4 — Portfolio Hardening
 
 ### Added

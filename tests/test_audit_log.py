@@ -39,3 +39,25 @@ def test_audit_log_detects_tampering_and_refuses_to_append(tmp_path: Path) -> No
     assert verify_audit_log(tmp_path)["valid"] is False
     with pytest.raises(AuditLogError):
         write_audit_event(tmp_path, category="tool", action="second")
+
+
+def test_audit_log_rejects_invalid_lines_and_invalid_event_metadata(tmp_path: Path) -> None:
+    path = tmp_path / "app" / "memory" / "audit_log.jsonl"
+    path.parent.mkdir(parents=True)
+
+    path.write_text("not-json\n", encoding="utf-8")
+    invalid_json = verify_audit_log(tmp_path)
+    assert invalid_json["valid"] is False
+    assert "JSON" in invalid_json["error"]
+    assert read_audit_log(tmp_path)["items"] == []
+
+    path.write_text("[]\n", encoding="utf-8")
+    non_object = verify_audit_log(tmp_path)
+    assert non_object["valid"] is False
+    assert "objekti" in non_object["error"]
+
+    with pytest.raises(ValueError):
+        write_audit_event(tmp_path, category="tool", action="run", outcome="unknown")
+
+    with pytest.raises(ValueError):
+        write_audit_event(tmp_path, category="tool", action="run", risk_level="critical")

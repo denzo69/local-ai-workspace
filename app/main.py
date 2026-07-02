@@ -64,8 +64,10 @@ from app.memory_governance import (
     list_memory_entries,
 )
 from app.manual_behavior import try_handle_manual_behavior
+from app.intent_planner import build_direct_response, plan_response
 from app.live_evals import run_live_evals
 from app.model_provider import ModelProviderError, model_provider_status, provider_from_config
+from app.output_validator import validate_output
 from app.prompt_injection import analyze_prompt_injection, build_prompt_injection_guardrail
 from app.rag_quality import evaluate_rag_quality
 from app.tool_permissions import annotate_tool_result, get_tool_policy, list_tool_policies
@@ -779,14 +781,22 @@ def append_markdown_entry(path: Path, entry: MemoryEntry):
     with LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
 
-    semantic_result = add_text_to_semantic_memory(
-        PROJECT_PATH,
-        entry.text,
-        title=title,
-        source=path.name,
-        tags=entry.tags or [],
-        timestamp=timestamp
-    )
+    try:
+        semantic_result = add_text_to_semantic_memory(
+            PROJECT_PATH,
+            entry.text,
+            title=title,
+            source=path.name,
+            tags=entry.tags or [],
+            timestamp=timestamp
+        )
+    except Exception as error:
+        semantic_result = {
+            "ok": False,
+            "indexed": False,
+            "error": str(error),
+            "message": "Memory was written, but semantic indexing failed.",
+        }
 
     return {
         "ok": True,
@@ -927,13 +937,14 @@ def ask_ollama(prompt: str) -> str:
     return text
 
 
-def build_sade_prompt(user_message: str) -> str:
+def build_sade_prompt(user_message: str, planning: Optional[Any] = None) -> str:
+    planning = planning or plan_response(user_message)
     system_prompt = get_system_prompt()
     language_context = build_language_context(user_message)
     injection_guardrail = build_prompt_injection_guardrail(user_message)
-    rag_context = get_rag_context(user_message)
-    memory_context = get_memory_context()
-    chat_context = get_chat_context()
+    rag_context = get_rag_context(user_message) if getattr(planning, "use_rag", False) else ""
+    memory_context = get_memory_context() if getattr(planning, "use_memory", False) else ""
+    chat_context = get_chat_context() if getattr(planning, "use_chat_context", False) else ""
     feedback_context = build_feedback_context(PROJECT_PATH)
 
     return f"""
@@ -946,15 +957,15 @@ Prompt injection -suoja:
 {injection_guardrail}
 
 RAG-konteksti, laadun mukaan priorisoidut muistot ja dokumentit:
-{rag_context}
+{rag_context or 'Ei sisällytetty tähän vastaukseen context gate -päätöksen vuoksi.'}
 
 Ohje: Käytä ensisijaisesti RAG-kontekstin learning_review-, atlas-, operating_manual- ja sade_memory-lähteitä. Älä nojaa chat_log-osumiin, ellei niitä ole erikseen annettu ja ne ole selvästi relevantteja.
 
 Pitkäaikainen muisti, Säde-muisti:
-{memory_context}
+{memory_context or 'Ei sisällytetty tähän vastaukseen context gate -päätöksen vuoksi.'}
 
 Viimeaikainen keskusteluloki:
-{chat_context}
+{chat_context or 'Ei sisällytetty tähän vastaukseen context gate -päätöksen vuoksi.'}
 
 Käyttäjän eksplisiittiset oppimiskorjaukset:
 {feedback_context or 'Ei tallennettuja korjauksia.'}
@@ -2669,6 +2680,11 @@ def _build_web_search_chat_result(message: str, *, reason: str = "automatic_fact
     }
 
 
+def _validate_planned_reply(planning: Any, reply: str) -> str:
+    validation = validate_output(planning, reply)
+    return str(validation.get("reply") or reply or "").strip()
+
+
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
@@ -2733,9 +2749,33 @@ def chat(request: ChatRequest):
     except Exception:
         pass
 
+    planning = plan_response(request.message)
+    try:
+        write_trace(
+            PROJECT_PATH,
+            event="chat_intent_planned",
+            user_message=request.message,
+            route="intent_planner",
+            decision=planning.intent,
+            details=planning.to_dict(),
+        )
+    except Exception:
+        pass
+
+    direct_reply = build_direct_response(planning, request.message)
+    if direct_reply:
+        reply = _validate_planned_reply(planning, direct_reply)
+        append_chat_log(request.message, reply)
+        return ChatResponse(
+            ok=True,
+            reply=reply,
+            model=load_config().get("ollama_model", "gpt-oss:20b"),
+            time=datetime.now().isoformat(timespec="seconds"),
+        )
+
     manual_behavior = try_handle_manual_behavior(PROJECT_PATH, request.message)
     if manual_behavior.get("handled"):
-        reply = str(manual_behavior.get("reply") or "").strip()
+        reply = _validate_planned_reply(planning, str(manual_behavior.get("reply") or "").strip())
         try:
             write_trace(
                 PROJECT_PATH,
@@ -2846,8 +2886,11 @@ def chat(request: ChatRequest):
             from app import web_search as web_search_module
 
             if (
-                web_search_module.is_current_info_request(request.message)
-                or web_search_module.is_automatic_web_search_request(request.message)
+                planning.needs_web
+                and (
+                    web_search_module.is_current_info_request(request.message)
+                    or web_search_module.is_automatic_web_search_request(request.message)
+                )
             ):
                 tool_result = _build_web_search_chat_result(request.message)
         except Exception as error:
@@ -2865,6 +2908,7 @@ def chat(request: ChatRequest):
                 "The request was routed to a tool, but the tool returned no visible reply. "
                 "Check the tool result and server logs."
             )
+        reply = _validate_planned_reply(planning, reply)
 
         tool_name = str(tool_result.get("tool", "tool_router"))
         tool_policy = get_tool_policy(tool_name)
@@ -2907,14 +2951,14 @@ def chat(request: ChatRequest):
             actions=tool_result.get("actions") or None,
         )
 
-    prompt = build_sade_prompt(request.message)
+    prompt = build_sade_prompt(request.message, planning)
     try:
         reply = ask_ollama(prompt)
     except HTTPException as error:
-        if error.status_code == 502:
+        if error.status_code == 502 and planning.needs_web:
             try:
                 tool_result = _build_web_search_chat_result(request.message, reason="model_provider_fallback")
-                reply = str(tool_result.get("reply") or "").strip()
+                reply = _validate_planned_reply(planning, str(tool_result.get("reply") or "").strip())
                 if reply:
                     append_chat_log(request.message, reply)
                     return ChatResponse(
@@ -2939,6 +2983,7 @@ def chat(request: ChatRequest):
     except Exception:
         pass
 
+    reply = _validate_planned_reply(planning, reply)
     append_chat_log(request.message, reply)
 
     return ChatResponse(

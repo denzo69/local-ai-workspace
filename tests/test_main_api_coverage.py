@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app import main
+from app import manual_behavior
 from app.auth import SESSION_COOKIE, create_user
 
 
@@ -161,10 +162,39 @@ def test_build_prompt_uses_guardrails_contexts_and_feedback(isolated_main: Path,
     monkeypatch.setattr(main, "get_chat_context", lambda: "CHAT")
     monkeypatch.setattr(main, "build_feedback_context", lambda path: "FEEDBACK")
 
-    prompt = main.build_sade_prompt("Hei Säde")
+    prompt = main.build_sade_prompt("Hei Säde", SimpleNamespace(use_rag=True, use_memory=True, use_chat_context=True))
 
     for expected in ["SYSTEM", "LANG", "GUARD", "RAG", "MEMORY", "CHAT", "FEEDBACK", "Hei Säde"]:
         assert expected in prompt
+
+
+def test_build_prompt_context_gate_blocks_unrelated_chat_history(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "get_system_prompt", lambda: "SYSTEM")
+    monkeypatch.setattr(main, "build_language_context", lambda message: "LANG")
+    monkeypatch.setattr(main, "build_prompt_injection_guardrail", lambda message: "GUARD")
+    monkeypatch.setattr(main, "get_rag_context", lambda message: "SOURCE LEAK")
+    monkeypatch.setattr(main, "get_memory_context", lambda: "BUSINESS MEMORY")
+    monkeypatch.setattr(main, "get_chat_context", lambda: "Previous answer: Suomessa on talvella usein lunta.")
+    monkeypatch.setattr(main, "build_feedback_context", lambda path: "")
+
+    prompt = main.build_sade_prompt("minkä kokoinen ankkuri on hyvä 7m pitkään veneeseen")
+
+    assert "Suomessa on talvella usein lunta" not in prompt
+    assert "BUSINESS MEMORY" not in prompt
+    assert "SOURCE LEAK" not in prompt
+    assert "context gate" in prompt
+    assert "ankkuri" in prompt
+
+
+def test_append_markdown_entry_survives_semantic_index_failure(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "add_text_to_semantic_memory", lambda *a, **k: (_ for _ in ()).throw(OSError("pagefile too small")))
+
+    result = main.append_markdown_entry(main.SADE_MEMORY_PATH, main.MemoryEntry(title="Fallback", text="Memory body", tags=["test"]))
+
+    assert result["ok"] is True
+    assert result["semantic_memory"]["ok"] is False
+    assert "pagefile too small" in result["semantic_memory"]["error"]
+    assert "Memory body" in main.SADE_MEMORY_PATH.read_text(encoding="utf-8")
 
 
 def test_status_and_safe_api_routes_with_auth(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -832,6 +862,66 @@ def test_manual_ai_behavior_checklist_routes(isolated_main: Path, monkeypatch: p
     client.close()
 
 
+def test_manual_behavior_helper_edges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert manual_behavior.try_handle_manual_behavior(tmp_path, "   ") == {"handled": False}
+    assert manual_behavior.try_handle_manual_behavior(tmp_path, "ordinary message") == {"handled": False}
+    assert manual_behavior._summary_reply().startswith("Local AI Workspace")
+    assert manual_behavior._extract_version_and_coverage("no metrics") == {"version": "", "coverage": "", "tests": ""}
+
+    app_dir = tmp_path / "app"
+    app_dir.mkdir()
+    (tmp_path / "VERSION").write_text("0.1.4", encoding="utf-8")
+    (tmp_path / "README.md").write_text(
+        "- 174 tests passing locally.\n"
+        "- 88% total test coverage.\n",
+        encoding="utf-8",
+    )
+    health = manual_behavior.try_handle_manual_behavior(app_dir, "Näytä projektin tekninen tila lyhyesti.")
+    assert health["handled"] is True
+    assert "0.1.4" in health["reply"]
+    assert "174" in health["reply"]
+    assert "88%" in health["reply"]
+
+    empty_root = tmp_path / "empty_root" / "missing"
+    empty_root.parent.mkdir()
+    missing_health = manual_behavior.try_handle_manual_behavior(empty_root, "Näytä projektin tekninen tila lyhyesti.")
+    assert "`unknown`" in missing_health["reply"]
+
+    old_readme_root = tmp_path / "old_readme"
+    old_readme_root.mkdir()
+    (old_readme_root / "README.md").write_text(
+        "coverage: 77% total\n"
+        "99 passed locally\n",
+        encoding="utf-8",
+    )
+    assert manual_behavior._coverage_from_readme(old_readme_root) == "77%"
+    assert manual_behavior._tests_from_readme(old_readme_root) == "99"
+
+    assert manual_behavior.try_handle_manual_behavior(empty_root, "Mitä muistat tämän projektin nykyisestä versiosta ja testikattavuudesta?")["category"] == "memory_recall_empty"
+
+    monkeypatch.setattr(
+        "app.rag_engine.rag_search",
+        lambda *a, **k: {"ok": True, "results": [{"text": "Local AI Workspace v0.1.4 has 174 passing tests and 88% total coverage."}]},
+    )
+    rag_ok = manual_behavior.try_handle_manual_behavior(tmp_path, "Hae lähteistä tieto nykyisestä testimäärästä ja coverage-prosentista.")
+    assert rag_ok["category"] == "rag_source_metrics"
+    assert "174" in rag_ok["reply"]
+
+    monkeypatch.setattr(
+        "app.rag_engine.rag_search",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("rag offline")),
+    )
+    rag_error = manual_behavior.try_handle_manual_behavior(tmp_path, "Hae lähteistä tieto nykyisestä testimäärästä ja coverage-prosentista.")
+    assert rag_error["category"] == "rag_source_error"
+    assert "rag offline" in rag_error["reply"]
+
+    monkeypatch.setattr(
+        "app.rag_engine.rag_search",
+        lambda *a, **k: {"ok": True, "results": [{"text": "This source has no project metrics."}]},
+    )
+    assert manual_behavior.try_handle_manual_behavior(tmp_path, "Hae lähteistä tieto nykyisestä testimäärästä ja coverage-prosentista.") == {"handled": False}
+
+
 def test_chat_factual_question_auto_routes_to_web_search(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_search(_root: Path, query: str, max_results: int = 6):
         return {
@@ -930,7 +1020,7 @@ def test_chat_model_provider_empty_response_falls_back_to_web_search(isolated_ma
     )
 
     client, headers = authenticated_client(isolated_main)
-    response = client.post("/chat", json={"message": "Kerro tästä aiheesta"}, headers=headers)
+    response = client.post("/chat", json={"message": "Onko Lieksassa nyt lunta?"}, headers=headers)
 
     assert response.status_code == 200
     assert "Fallback source" in response.json()["reply"]

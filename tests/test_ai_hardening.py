@@ -8,7 +8,7 @@ from app.model_provider import model_provider_status, provider_from_config
 from app.prompt_injection import analyze_prompt_injection, build_prompt_injection_guardrail
 from app.rag_engine import rag_search
 from app.rag_quality import evaluate_rag_quality
-from app.tool_permissions import get_tool_policy, list_tool_policies, validate_tool_execution
+from app.tool_permissions import annotate_tool_result, get_tool_policy, list_tool_policies, risk_at_least, validate_tool_execution
 
 
 def test_prompt_injection_detector_flags_common_attacks() -> None:
@@ -25,12 +25,17 @@ def test_tool_policy_risk_levels_and_confirmation() -> None:
     assert get_tool_policy("read_file")["risk_level"] == "read"
     assert get_tool_policy("write_file")["requires_confirmation"] is True
     assert get_tool_policy("update_system_prompt")["risk_level"] == "critical"
+    assert get_tool_policy("unregistered_tool")["risk_level"] == "medium"
+    assert risk_at_least("critical", "file_write") is True
+    assert risk_at_least("unknown-risk", "medium") is True
 
     denied = validate_tool_execution("write_file", confirmed=False)
     allowed = validate_tool_execution("write_file", confirmed=True)
+    annotated = annotate_tool_result("read_file", {"ok": True})
 
     assert denied["allowed"] is False
     assert allowed["allowed"] is True
+    assert annotated["tool_policy"]["name"] == "read_file"
     assert list_tool_policies()["ok"] is True
 
 
@@ -107,10 +112,13 @@ def test_model_provider_status_and_config() -> None:
     config = {"model_provider": "ollama", "ollama_model": "test-model", "ollama_url": "http://127.0.0.1:11434/api/generate"}
     status = model_provider_status(config)
     provider = provider_from_config(config)
+    unknown_status = model_provider_status({"model_provider": "openai", "ollama_model": "ignored"})
 
     assert status["ok"] is True
     assert status["provider"] == "ollama"
     assert provider.model == "test-model"
+    assert unknown_status["ok"] is False
+    assert unknown_status["url"] is None
 
 
 def test_static_ai_evals_pass(tmp_path: Path) -> None:
@@ -119,4 +127,3 @@ def test_static_ai_evals_pass(tmp_path: Path) -> None:
     result = run_static_evals(tmp_path)
     assert result["ok"] is True
     assert result["passed"] == result["total"]
-

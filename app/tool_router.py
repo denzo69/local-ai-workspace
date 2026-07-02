@@ -633,6 +633,10 @@ def route_tool_request(project_path: Path, message: str) -> Dict[str, Any]:
     if not text:
         return {"handled": False, "reason": "empty_message"}
 
+    from app.intent_planner import plan_response
+
+    planning = plan_response(original)
+
     from app.learning_feedback import parse_feedback_message, read_feedback, record_feedback
     from app.memory_cleaner import plan_memory_cleanup
 
@@ -722,8 +726,8 @@ def route_tool_request(project_path: Path, message: str) -> Dict[str, Any]:
         "search web",
     ])
     explicit_web_search = explicit_web_search or is_explicit_web_search_request(original)
-    current_info_search = False if explicit_web_search else is_current_info_request(original)
-    automatic_web_search = False if explicit_web_search else is_automatic_web_search_request(original)
+    current_info_search = False if explicit_web_search else (planning.needs_web and is_current_info_request(original))
+    automatic_web_search = False if explicit_web_search else (planning.needs_web and is_automatic_web_search_request(original))
     pending_web_search = False if explicit_web_search else consume_pending_web_search(project_path, original)
 
     if explicit_web_search or current_info_search or automatic_web_search or pending_web_search:
@@ -766,13 +770,19 @@ def route_tool_request(project_path: Path, message: str) -> Dict[str, Any]:
         return route_goal_engine_request(project_path, original)
 
     try:
-        if _is_omatila_request(text):
+        if _is_omatila_request(text) and planning.use_self_state:
             result = _build_omatila_reply(project_path)
             return {
                 "handled": True,
                 "tool": "introspection",
                 "result": result,
                 "reply": result.get("reply", "Omatila muodostettiin, mutta vastausteksti puuttui."),
+            }
+        if _is_omatila_request(text):
+            return {
+                "handled": False,
+                "reason": "self_state_blocked_by_intent_planner",
+                "intent": planning.intent,
             }
 
         if text in {"työkalujen tila", "tool status", "tools status"} or text.startswith("tarkista työkal"):
@@ -1071,6 +1081,10 @@ def route_tool_preview(message: str) -> Dict[str, Any]:
     if not text:
         return {"would_route": False, "tool": None, "reason": "empty_message"}
 
+    from app.intent_planner import plan_response
+
+    planning = plan_response(message)
+
     from app.web_search import is_automatic_web_search_request, is_current_info_request, is_explicit_web_search_request, is_web_search_status_request, is_web_search_trial_request
     if is_web_search_status_request(message):
         return {"would_route": True, "tool": "web_search_status"}
@@ -1098,10 +1112,10 @@ def route_tool_preview(message: str) -> Dict[str, Any]:
     if is_explicit_web_search_request(message):
         return {"would_route": True, "tool": "web_search"}
 
-    if is_current_info_request(message):
+    if planning.needs_web and is_current_info_request(message):
         return {"would_route": True, "tool": "web_search"}
 
-    if is_automatic_web_search_request(message):
+    if planning.needs_web and is_automatic_web_search_request(message):
         return {"would_route": True, "tool": "web_search"}
 
     # Goal Engine v1.1 — priorisoitu preview ennen yleistä omatilaa.
@@ -1135,7 +1149,7 @@ def route_tool_preview(message: str) -> Dict[str, Any]:
     ]):
         return {"would_route": True, "tool": "goal_engine"}
 
-    if _is_omatila_request(text):
+    if _is_omatila_request(text) and planning.use_self_state:
         return {"would_route": True, "tool": "introspection"}
 
     if text.startswith(("hae muistista", "etsi muistista", "semanttinen haku", "semantic search")):
