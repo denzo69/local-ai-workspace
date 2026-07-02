@@ -28,6 +28,67 @@ BUSINESS_LEAK_TERMS = (
 )
 
 
+LOCAL_PLACE_TERMS = (
+    "lieksa",
+    "lieksassa",
+    "lieksan",
+    "koli",
+    "kolilla",
+    "kolin",
+    "joensuu",
+    "joensuussa",
+    "joensuun",
+    "nurmes",
+    "nurmeksessa",
+    "helsinki",
+    "helsingissa",
+    "helsingin",
+    "kuopio",
+    "kuopiossa",
+    "kuopion",
+    "jarvenpaa",
+    "jarvenpaassa",
+    "pielinen",
+)
+
+
+LOCAL_EXTERNAL_TERMS = (
+    "asukasluku",
+    "asukkaita",
+    "vakiluku",
+    "population",
+    "mista voin ostaa",
+    "mista ostaa",
+    "mista saa",
+    "mista loydan",
+    "rengasliike",
+    "renkaat",
+    "rengas",
+    "autokorjaamo",
+    "korjaamo",
+    "huolto",
+    "liike",
+    "kauppa",
+    "palvelu",
+    "aukiolo",
+    "aukioloajat",
+    "saatavuus",
+    "saatavilla",
+    "tapahtumat",
+    "tanaan",
+    "nyt",
+    "hinta",
+    "maksaa",
+    "halvin",
+    "diesel",
+    "bensiini",
+    "lunta",
+    "lumitilanne",
+    "saa",
+    "weather",
+)
+
+
 WEEKDAYS_FI = (
     "maanantai",
     "tiistai",
@@ -166,7 +227,7 @@ def _format_finnish_date(dt: datetime) -> str:
 def _is_date_time_question(text: str) -> bool:
     if _has_any(text, ("what day is it", "what date is it", "current date", "what time is it")):
         return True
-    if "kello" in text and _has_any(text, ("paljon", "paljo", "mita", "mikä", "palion")):
+    if "kello" in text and _has_any(text, ("paljon", "paljo", "mita", "mika", "palion")):
         return True
     date_phrases = (
         "mika paiva nyt on",
@@ -192,6 +253,41 @@ def _date_time_reply(text: str) -> str:
     if wants_date and not wants_time:
         return f"Tänään on {_format_finnish_date(now)}."
     return f"Tänään on {_format_finnish_date(now)}, ja kello on {now.strftime('%H.%M')} Suomen aikaa."
+
+
+def _is_local_external_question(text: str) -> bool:
+    has_place = any(place in text for place in LOCAL_PLACE_TERMS)
+    has_external_term = any(term in text for term in LOCAL_EXTERNAL_TERMS)
+    near_me_lookup = any(term in text for term in ("lahin", "lahella", "near me")) and has_external_term
+    return (has_place and has_external_term) or near_me_lookup
+
+
+def _local_external_query(original: str, text: str) -> str:
+    query = " ".join(str(original or "").split()).strip(" .!?;:")
+    if "asukasluku" in text or "asukkaita" in text or "vakiluku" in text:
+        return f"{query} Tilastokeskus kunta väkiluku 2026"
+    if "renka" in text or "rengasliike" in text:
+        return f"{query} rengasliike Lieksa renkaat auto"
+    if "aukiolo" in text:
+        return f"{query} aukioloajat virallinen"
+    return query
+
+
+def _local_external_search_reply(project_path: Path, original: str, text: str) -> str:
+    try:
+        from app import web_search as web_search_module
+
+        query = _local_external_query(original, text)
+        result = web_search_module.web_search(project_path, query, max_results=6)
+        reply = web_search_module.format_web_search_reply(result)
+        if reply.strip():
+            return reply
+        return "Tämä kysymys vaatii paikallista tai ajantasaista ulkoista tietoa, mutta verkkohaku ei palauttanut näkyvää vastausta."
+    except Exception as error:
+        return (
+            "Tämä kysymys vaatii paikallista tai ajantasaista ulkoista tietoa, joten se pitäisi ohjata verkkohakuun. "
+            f"Verkkohaku epäonnistui ennen vastausta: {error}"
+        )
 
 
 def _is_assistant_permission_question(text: str) -> bool:
@@ -383,6 +479,13 @@ def try_handle_manual_behavior(project_path: Path, message: str) -> Dict[str, An
                 "Audit-lokin tyhjennys on korkean riskin ylläpitotoimi eikä sitä tehdä chat-komennolla."
             ),
             "category": "destructive_action_boundary",
+        }
+
+    if _is_local_external_question(text):
+        return {
+            "handled": True,
+            "reply": _local_external_search_reply(project_path, original, text),
+            "category": "local_external_information",
         }
 
     deterministic_checks = [
