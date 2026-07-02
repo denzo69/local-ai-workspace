@@ -318,9 +318,9 @@ def test_goal_engine_recommendation_ladder_and_replies(tmp_path: Path) -> None:
     routed = goal_engine.route_goal_engine_request(tmp_path, "mikä on seuraava kehitysaskel")
 
     assert status["recommendation"]["id"] == "task_state_v1"
-    assert "Goal Engine v1 ei muuta tiedostoja" in status["truth_boundary"][0]
-    assert "Oppimistila" in learning_reply
-    assert "Seuraava kehitysaskel" in next_reply
+    assert "Goal Engine v1 does not modify files" in status["truth_boundary"][0]
+    assert "Learning Status" in learning_reply
+    assert "Next Development Step" in next_reply
     assert routed["tool"] == "goal_engine"
     assert goal_engine.is_goal_engine_request("goal engine") is True
 
