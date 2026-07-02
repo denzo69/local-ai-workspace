@@ -2,6 +2,32 @@
 
 All notable changes to Local AI Workspace are documented here.
 
+## v0.1.4 — Portfolio Hardening
+
+### Added
+
+- Project Health Dashboard with sanitized status reporting.
+- Manual AI behavior check routing for portfolio smoke tests.
+- Additional safety routing for high-risk prompts.
+- Additional tests for auth/session safety, upload validation, project health reporting, RAG, web search, model fallback, tool routing, API routes and live eval paths.
+
+### Changed
+
+- Polished README presentation and portfolio wording.
+- Improved public project naming and GitHub repository presentation.
+- Replaced overly specific recipe-search wording with broader factual-search routing language.
+
+### Verified
+
+- 174 tests passing locally.
+- 88% total test coverage.
+- GitHub Actions passing.
+- Release readiness check passing.
+
+### Notes
+
+This remains a portfolio-stage local-first AI assistant project, not a production SaaS product.
+
 ## [0.1.9-manual-ai-behavior-hardening] - 2026-07-02
 
 ### Added
