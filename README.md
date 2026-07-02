@@ -13,6 +13,7 @@ It is designed as a portfolio-grade AI engineering project: it demonstrates not 
 - Separating user-facing features from advanced developer tools.
 - Implementing authentication, CSRF protection, audit logging, and backup workflows.
 - Adding AI evals, prompt-injection checks, tool risk policies, and release readiness checks.
+- Using deterministic safety and portfolio smoke-test routing for high-risk or project-identity prompts.
 - Presenting operational health through a sanitized dashboard that hides local paths from normal use.
 - Writing a portfolio-friendly open-source project surface: README, QUICKSTART, SECURITY, CONTRIBUTING, CI, issue templates, and changelog.
 
@@ -23,6 +24,7 @@ Local AI Workspace demonstrates practical AI engineering rather than only prompt
 - local AI application architecture with FastAPI;
 - authentication, CSRF protection, audit logging, and guarded file tools;
 - RAG, semantic memory, web-search truth boundaries, and AI eval entrypoints;
+- deterministic safety routing for secret-file requests, destructive actions, missing-source claims, and portfolio smoke tests;
 - test-driven hardening with `pytest`, coverage reports, and release readiness checks;
 - portfolio-quality documentation and a maintainable GitHub project surface.
 
@@ -34,6 +36,7 @@ Local AI Workspace demonstrates practical AI engineering rather than only prompt
 - **Memory governance**: list memories, export memory, guarded deletion API.
 - **RAG and source quality checks** for safer retrieval-assisted answers.
 - **Prompt injection detection** and tool risk classification.
+- **Deterministic safety routing** for secret-file requests, destructive actions, missing-source claims, and portfolio smoke tests.
 - **Audit log and debug trace** for safety and observability.
 - **Project Health Dashboard** with sanitized server, version, model, RAG, web search, audit, test, release, storage, and privacy status.
 - **Authentication** with local users, CSRF protection, and session cookies.
