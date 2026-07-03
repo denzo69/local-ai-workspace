@@ -97,13 +97,15 @@ def test_health_lifestyle_question_blocks_business_leakage(tmp_path):
 
 
 def test_coffee_question_blocks_business_leakage(tmp_path):
-    result = _handled(tmp_path, "Onko kaksi kuppia kahvia liikaa aamulla?")
+    result = try_handle_manual_behavior(tmp_path, "Onko kaksi kuppia kahvia liikaa aamulla?")
 
-    assert result["category"] == "health_lifestyle_general"
-    assert "kahvia" in result["reply"].lower() or "kofeiini" in result["reply"].lower()
-    assert "freelance" not in result["reply"].lower()
-    assert "dta" not in result["reply"].lower()
-    assert "verokort" not in result["reply"].lower()
+    assert result["handled"] is False
+
+
+def test_oat_milk_coffee_question_is_not_captured_by_old_coffee_template(tmp_path):
+    result = try_handle_manual_behavior(tmp_path, "Käykö kauramaito kahviin?")
+
+    assert result["handled"] is False
 
 
 def test_population_question_routes_to_web_search(tmp_path, monkeypatch):
@@ -120,13 +122,46 @@ def test_population_question_routes_to_web_search(tmp_path, monkeypatch):
 def test_local_tire_purchase_question_routes_to_web_search(tmp_path, monkeypatch):
     calls = _patch_web_search(monkeypatch)
 
-    result = _handled(tmp_path, "mistä voin ostaa autooni renkaat lieksassa")
+    result = _handled(tmp_path, "mistä voin ostaa autooni renkaat lieksasta")
 
     assert result["category"] == "local_external_information"
     assert "Verkkohaku" in result["reply"]
     assert "renkaat" in calls["query"].lower()
     assert "lieksa" in calls["query"].lower()
     assert "rengasliike" in calls["query"].lower()
+
+
+def test_lieksa_train_station_address_routes_to_web_search(tmp_path, monkeypatch):
+    calls = _patch_web_search(monkeypatch)
+
+    result = _handled(tmp_path, "Voitko kertoa Lieksan juna aseman osoitteen?")
+
+    assert result["category"] == "local_external_information"
+    assert "Verkkohaku" in result["reply"]
+    assert "lieksan" in calls["query"].lower()
+    assert "juna aseman osoitteen" in calls["query"].lower()
+
+
+def test_lieksa_health_center_contact_info_routes_to_web_search(tmp_path, monkeypatch):
+    calls = _patch_web_search(monkeypatch)
+
+    result = _handled(tmp_path, "Lieksan terveyskeskuksen yhteystiedot")
+
+    assert result["category"] == "local_external_information"
+    assert "Verkkohaku" in result["reply"]
+    assert "lieksan" in calls["query"].lower()
+    assert "terveyskeskuksen yhteystiedot" in calls["query"].lower()
+
+
+def test_nurmes_health_center_contact_info_routes_to_web_search(tmp_path, monkeypatch):
+    calls = _patch_web_search(monkeypatch)
+
+    result = _handled(tmp_path, "Nurmeksen terveyskeskuksen yhteystiedot")
+
+    assert result["category"] == "local_external_information"
+    assert "Verkkohaku" in result["reply"]
+    assert "nurmeksen" in calls["query"].lower()
+    assert "terveyskeskuksen yhteystiedot" in calls["query"].lower()
 
 
 def test_date_time_still_does_not_route_to_local_web_search(tmp_path, monkeypatch):

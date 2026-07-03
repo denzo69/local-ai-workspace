@@ -40,10 +40,14 @@ def test_guided_web_search_consumes_next_message_as_query(tmp_path: Path, monkey
     assert not (tmp_path / "app" / "memory" / "web_search_state.json").exists()
 
 
-def test_plain_message_is_not_web_search_without_pending_state(tmp_path: Path) -> None:
+def test_current_research_message_routes_to_automatic_web_search_without_pending_state(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("app.web_search.web_search", _fake_search)
+
     result = route_tool_request(tmp_path, "viimeisimmät tutkimustulokset tekoälyn etiikasta")
 
-    assert result["handled"] is False
+    assert result["handled"] is True
+    assert result["tool"] == "web_search"
+    assert result["result"]["query"] == "viimeisimmät tutkimustulokset tekoälyn etiikasta"
 
 
 def test_explicit_web_search_still_works(tmp_path: Path, monkeypatch) -> None:

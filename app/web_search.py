@@ -650,6 +650,34 @@ def review_latest_search_sources(project_root: Optional[Path] = None) -> Dict[st
     }
 
 
+def read_search_result_sources(search_result: Dict[str, Any], *, max_sources: int = 3) -> Dict[str, Any]:
+    """Read a limited set of search result pages for source-grounded answers.
+
+    This is intentionally bounded: only public HTTP(S) pages are fetched, only a
+    small number of sources is inspected, and each source excerpt is compacted.
+    The caller must still preserve uncertainty if no useful source text is read.
+    """
+    query = str(search_result.get("query") or "").strip()
+    sources = []
+    for item in (search_result.get("results") or [])[:max_sources]:
+        checked = inspect_source(str(item.get("url") or ""))
+        merged = {**item, **checked}
+        for key in ("description", "preview", "snippet"):
+            if merged.get(key):
+                merged[key] = _compact_excerpt(str(merged.get(key)), max_chars=900)
+        sources.append(merged)
+
+    verified_count = sum(1 for item in sources if item.get("ok"))
+    return {
+        "ok": verified_count > 0,
+        "query": query,
+        "sources": sources,
+        "verified_count": verified_count,
+        "answer_summary": build_source_based_answer(query, sources),
+        "truth_boundary": "Vastaus perustuu rajattuun automaattiseen lähdelukuun ja lähdeotteisiin.",
+    }
+
+
 def _ascii_finnish(text: str) -> str:
     value = str(text or "").lower()
     try:
@@ -868,13 +896,13 @@ def is_current_info_request(message: str) -> bool:
         "jokeri",
         "eurojackpot",
         "sää",
+        "saa",
         "weather",
+        "lumi",
+        "lunta",
+        "snow",
         "kurssi",
         "exchange rate",
-        "tänään",
-        "today",
-        "huomenna",
-        "tomorrow",
         "aikataulu",
         "schedule",
     )
@@ -886,6 +914,8 @@ def is_current_info_request(message: str) -> bool:
         "tulos",
         "tulokset",
         "nyt",
+        "tällä hetkellä",
+        "talla hetkella",
         "current",
         "latest",
         "today",
@@ -940,6 +970,17 @@ def is_automatic_web_search_request(message: str) -> bool:
     )
     factual_terms = (
         "kulutus", "polttoaine", "fuel consumption", "hinta", "price", "maksaa",
+        "ostaa", "osta", "myy", "myydaan", "myydään", "kauppa", "liike",
+        "palvelu", "yritys", "rengas", "renkaat", "rengasliike",
+        "autohuolto", "autohuollot", "korjaamo", "korjaamot", "huoltamo", "huoltamot",
+        "autokorjaamo", "autokorjaamot",
+        "yhteystiedot", "contact", "contacts", "puhelinnumero", "puhelin",
+        "sahkoposti", "sähköposti", "email", "osoite", "address", "sijainti",
+        "aukioloajat", "aukiolo", "terveyskeskus", "terveyskeskuk",
+        "terveysasema", "terveysaseman",
+        "asema", "juna asema", "juna-asema",
+        "rautatieasema", "train station",
+        "suositus", "suosittele", "paras", "best", "near me",
         "spec", "specs", "tekniset tiedot", "technical data", "moottori", "engine",
         "malli", "model", "vuosimalli", "year", "paino", "weight", "mitta",
         "length", "leveys", "width", "teho", "horsepower", "hp", "kw",
@@ -954,23 +995,49 @@ def is_automatic_web_search_request(message: str) -> bool:
         "resepti", "recipe", "ruokaohje", "pullataikina", "taikina",
         "pulla", "leivonta", "baking", "ainesosat", "ingredients",
     )
+    purchase_terms = (
+        "ostaa", "osta", "mista ostaa", "missa myydaan", "myydaan",
+        "kauppa", "liike", "palvelu", "yritys", "near me",
+        "autohuolto", "autohuollot", "korjaamo", "korjaamot", "huoltamo", "huoltamot",
+        "autokorjaamo", "autokorjaamot",
+    )
+    contact_terms = (
+        "yhteystiedot", "contact", "contacts", "puhelinnumero", "puhelin",
+        "sahkoposti", "sähköposti", "email", "osoite", "address", "sijainti",
+        "aukioloajat", "aukiolo", "terveyskeskus", "terveyskeskuk",
+        "terveysasema", "terveysaseman",
+    )
 
     has_question_word = any(ascii_text.startswith(term) or f" {term} " in f" {ascii_text} " for term in interrogatives)
     has_factual_term = any(_ascii_finnish(term) in ascii_text for term in factual_terms)
     has_recipe_term = any(_ascii_finnish(term) in ascii_text for term in recipe_terms)
+    has_purchase_term = any(_ascii_finnish(term) in ascii_text for term in purchase_terms)
+    has_contact_term = any(_ascii_finnish(term) in ascii_text for term in contact_terms)
     asks_for_instructions = any(term in ascii_text for term in ("ohje", "miten tehdaan", "miten teen", "valmistus"))
     has_model_like_token = bool(re.search(r"\b[a-z]{2,}\s*[-]?\s*\d{2,}[a-z0-9-]*\b|\b\d{4}[a-z]?\b", ascii_text))
 
     if is_current_info_request(message):
         return True
 
-    if question_mark and (has_question_word or has_factual_term or has_model_like_token):
+    if question_mark and (
+        has_factual_term
+        or has_model_like_token
+        or has_recipe_term
+        or has_purchase_term
+        or has_contact_term
+    ):
         return True
 
     if has_question_word and (has_factual_term or has_model_like_token):
         return True
 
     if has_recipe_term and (asks_for_instructions or has_question_word or question_mark):
+        return True
+
+    if has_purchase_term and (has_question_word or question_mark):
+        return True
+
+    if has_contact_term:
         return True
 
     return False

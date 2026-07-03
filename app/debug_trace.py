@@ -73,3 +73,55 @@ def read_traces(project_root: Path, limit: int = 50) -> Dict[str, Any]:
         "items": items[-max(1, min(int(limit), 200)):],
     }
 
+
+def summarize_latest_trace(project_root: Path, limit: int = 40) -> Dict[str, Any]:
+    """Return a compact operational route summary for developer debugging.
+
+    This is not chain-of-thought. It only exposes routing/tool/source metadata
+    already written by the chat pipeline.
+    """
+    data = read_traces(project_root, limit=limit)
+    items = data.get("items") or []
+    route_used = ""
+    intent = ""
+    search_query = ""
+    sources_found = 0
+    sources_read = 0
+    validator_result = ""
+    conversation_context: Dict[str, Any] = {}
+
+    for item in items:
+        details = item.get("details") or {}
+        route_used = str(details.get("route_used") or route_used)
+        if item.get("event") == "chat_intent_planned":
+            intent = str(details.get("intent") or item.get("decision") or intent)
+        if item.get("event") == "conversation_context_used":
+            conversation_context = dict(details.get("conversation_context") or {})
+            search_query = str(details.get("search_query") or search_query)
+        if item.get("event") == "web_search_executed":
+            search_query = str(details.get("query") or search_query)
+            try:
+                sources_found = int(details.get("sources_found") or sources_found)
+            except Exception:
+                pass
+        if item.get("event") == "web_sources_read":
+            try:
+                sources_read = int(details.get("sources_read") or sources_read)
+            except Exception:
+                pass
+        if item.get("event") == "output_validated":
+            validator_result = str(details.get("result") or validator_result)
+
+    return {
+        "ok": True,
+        "mode": "sanitized_route_summary",
+        "items_seen": len(items),
+        "route_used": route_used or "unknown",
+        "intent": intent or "unknown",
+        "search_query": search_query,
+        "sources_found": sources_found,
+        "sources_read": sources_read,
+        "validator_result": validator_result or "not_recorded",
+        "conversation_context": conversation_context,
+        "note": "Operational trace only; no hidden reasoning is exposed.",
+    }

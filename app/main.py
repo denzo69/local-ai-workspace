@@ -56,18 +56,17 @@ from app.backup_restore import (
     list_backup_archives,
     restore_backup_archive,
 )
-from app.debug_trace import read_traces, write_trace
+from app.debug_trace import read_traces, summarize_latest_trace, write_trace
 from app.memory_governance import (
     DELETE_CONFIRMATION,
     delete_memory_entry,
     export_memory_json,
     list_memory_entries,
 )
-from app.manual_behavior import try_handle_manual_behavior
-from app.intent_planner import build_direct_response, plan_response
+from app.chat_pipeline import ChatPipelineDependencies, handle_chat_message
+from app.intent_planner import plan_response
 from app.live_evals import run_live_evals
 from app.model_provider import ModelProviderError, model_provider_status, provider_from_config
-from app.output_validator import validate_output
 from app.prompt_injection import analyze_prompt_injection, build_prompt_injection_guardrail
 from app.rag_quality import evaluate_rag_quality
 from app.tool_permissions import annotate_tool_result, get_tool_policy, list_tool_policies
@@ -393,8 +392,8 @@ def load_config():
         "rag_search_results": 8,
         "rag_include_chat_log": False,
         "ui_language": "fi",
-	"export_path": "D:/Sade_Exports",
-    	"backup_path": "D:/Sade_Backups"
+        "export_path": "D:/Sade_Exports",
+        "backup_path": "D:/Sade_Backups"
     }
 
     if not CONFIG_PATH.exists():
@@ -967,6 +966,12 @@ Pitkäaikainen muisti, Säde-muisti:
 Viimeaikainen keskusteluloki:
 {chat_context or 'Ei sisällytetty tähän vastaukseen context gate -päätöksen vuoksi.'}
 
+Keskustelun jatko-ohje:
+Jos viimeaikainen keskusteluloki on sisällytetty ja käyttäjän uusi viesti viittaa aiempaan aiheeseen
+sanoilla kuten "siihen", "siitä", "sille", "tuohon", "entä", "mikä olisi hyvä" tai vastaavilla,
+ratkaise viittaus ensisijaisesti viimeisimmästä käyttäjän ja avustajan aiheesta. Älä vaihda aihetta
+Local AI Workspace -projektiesittelyyn, ellei käyttäjä nimenomaan kysy projektista.
+
 Käyttäjän eksplisiittiset oppimiskorjaukset:
 {feedback_context or 'Ei tallennettuja korjauksia.'}
 
@@ -1203,7 +1208,7 @@ def root():
             "/audit/status",
             "/audit/log",
             "/export",
-	    "/backup",
+            "/backup",
             "/docs"
         ]
     }
@@ -1738,6 +1743,11 @@ def get_audit_log(request: ToolLogReadRequest):
 @app.get("/debug/trace")
 def debug_trace(limit: int = 50):
     return read_traces(PROJECT_PATH, limit=limit)
+
+
+@app.get("/debug/trace/summary")
+def debug_trace_summary(limit: int = 40):
+    return summarize_latest_trace(PROJECT_PATH, limit=limit)
 
 
 @app.get("/evals/static")
@@ -2666,7 +2676,8 @@ def _handle_rag_chat_command(message: str):
 def _build_web_search_chat_result(message: str, *, reason: str = "automatic_factual_search") -> Dict[str, object]:
     from app import web_search as web_search_module
 
-    search_result = web_search_module.web_search(PROJECT_PATH, message, max_results=6)
+    query = web_search_module.extract_web_query(message)
+    search_result = web_search_module.web_search(PROJECT_PATH, query, max_results=6)
     return {
         "handled": True,
         "tool": "web_search",
@@ -2680,318 +2691,36 @@ def _build_web_search_chat_result(message: str, *, reason: str = "automatic_fact
     }
 
 
-def _validate_planned_reply(planning: Any, reply: str) -> str:
-    validation = validate_output(planning, reply)
-    return str(validation.get("reply") or reply or "").strip()
-
-
-
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-    # CHAT_COMMAND_LAYER_V1_START
-    # Dev Mode -komennot käsitellään suoraan /chat-funktion alussa.
-    # Näin kielimalli ei ehdi keksiä koodikarttaa omasta päästään.
-    try:
-        from fastapi.responses import JSONResponse as _CommandJSONResponse
-        from app.dev_chat_commands import try_handle_dev_command as _try_handle_dev_command
-
-        _user_message = getattr(request, "message", None)
-        _project_path = globals().get("PROJECT_PATH") or globals().get("BASE_PATH")
-
-        if _user_message:
-            _command_reply = _try_handle_dev_command(_project_path, str(_user_message))
-
-            if _command_reply is not None and str(_command_reply).strip():
-                try:
-                    append_chat_log(str(_user_message), str(_command_reply))
-                except Exception:
-                    pass
-
-                return _CommandJSONResponse({
-                    "ok": True,
-                    "source": "chat_command_layer_v1",
-                    "response": _command_reply,
-                    "reply": _command_reply,
-                    "answer": _command_reply,
-                    "message": _command_reply,
-                    "text": _command_reply,
-                })
-
-    except Exception as _command_error:
-        from fastapi.responses import JSONResponse as _CommandJSONResponse
-
-        _error_text = f"Chat Command Layer tunnisti komennon, mutta suoritus epäonnistui: {_command_error}"
-
-        return _CommandJSONResponse({
-            "ok": False,
-            "source": "chat_command_layer_v1",
-            "response": _error_text,
-            "reply": _error_text,
-            "answer": _error_text,
-            "message": _error_text,
-            "text": _error_text,
-        }, status_code=500)
-    # CHAT_COMMAND_LAYER_V1_END
-
-    if not request.message.strip():
-        raise HTTPException(status_code=400, detail="Viesti ei saa olla tyhjä.")
-
-    injection_analysis = analyze_prompt_injection(request.message)
-    try:
-        write_trace(
-            PROJECT_PATH,
-            event="chat_received",
-            user_message=request.message,
-            route="chat",
-            decision="analyze_message",
-            details={"prompt_injection": injection_analysis},
-        )
-    except Exception:
-        pass
-
-    planning = plan_response(request.message)
-    try:
-        write_trace(
-            PROJECT_PATH,
-            event="chat_intent_planned",
-            user_message=request.message,
-            route="intent_planner",
-            decision=planning.intent,
-            details=planning.to_dict(),
-        )
-    except Exception:
-        pass
-
-    direct_reply = build_direct_response(planning, request.message)
-    if direct_reply:
-        reply = _validate_planned_reply(planning, direct_reply)
-        append_chat_log(request.message, reply)
-        return ChatResponse(
-            ok=True,
-            reply=reply,
-            model=load_config().get("ollama_model", "gpt-oss:20b"),
-            time=datetime.now().isoformat(timespec="seconds"),
-        )
-
-    manual_behavior = try_handle_manual_behavior(PROJECT_PATH, request.message)
-    if manual_behavior.get("handled"):
-        reply = _validate_planned_reply(planning, str(manual_behavior.get("reply") or "").strip())
-        try:
-            write_trace(
-                PROJECT_PATH,
-                event="chat_manual_behavior",
-                user_message=request.message,
-                route="manual_behavior",
-                decision=str(manual_behavior.get("category") or "handled"),
-                details={"category": manual_behavior.get("category")},
-            )
-        except Exception:
-            pass
-
-        append_chat_log(request.message, reply)
-
-        return ChatResponse(
-            ok=True,
-            reply=reply,
-            model=load_config().get("ollama_model", "gpt-oss:20b"),
-            time=datetime.now().isoformat(timespec="seconds"),
-        )
-
-    memory_text = extract_memory_command(request.message)
-
-    if memory_text:
-        entry = MemoryEntry(
-            title="Keskustelusta tallennettu muisto",
-            text=memory_text,
-            tags=["chat", "automaattinen muisti"]
-        )
-
-        save_result = append_markdown_entry(SADE_MEMORY_PATH, entry)
-
-        reply = (
-            f"Tallensin tämän Säde-muistiin:\n\n"
-            f"{memory_text}\n\n"
-            f"Aika: {save_result['time']}"
-        )
-
-        append_chat_log(request.message, reply)
-
-        return ChatResponse(
-            ok=True,
-            reply=reply,
-            model=load_config().get("ollama_model", "gpt-oss:20b"),
-            time=datetime.now().isoformat(timespec="seconds")
-        )
-
-    learning_review_command = _handle_learning_review_chat_command(request.message)
-
-    if learning_review_command.get("handled"):
-        reply = learning_review_command.get("reply", "Oppimiskatsauskomento käsitelty.")
-
-        append_chat_log(request.message, reply)
-
-        return ChatResponse(
-            ok=True,
-            reply=reply,
-            model=load_config().get("ollama_model", "gpt-oss:20b"),
-            time=datetime.now().isoformat(timespec="seconds")
-        )
-
-    learning_command = _handle_learning_chat_command(request.message)
-
-    if learning_command.get("handled"):
-        reply = learning_command.get("reply", "Oppimiskomento käsitelty.")
-
-        append_chat_log(request.message, reply)
-
-        return ChatResponse(
-            ok=True,
-            reply=reply,
-            model=load_config().get("ollama_model", "gpt-oss:20b"),
-            time=datetime.now().isoformat(timespec="seconds")
-        )
-
-    task_command = _handle_task_chat_command(request.message)
-
-    if task_command.get("handled"):
-        reply = task_command.get("reply", "Tehtäväkomento käsitelty.")
-
-        append_chat_log(request.message, reply)
-
-        return ChatResponse(
-            ok=True,
-            reply=reply,
-            model=load_config().get("ollama_model", "gpt-oss:20b"),
-            time=datetime.now().isoformat(timespec="seconds")
-        )
-
-    rag_command = _handle_rag_chat_command(request.message)
-
-    if rag_command.get("handled"):
-        reply = rag_command.get("reply", "RAG-komento käsitelty.")
-
-        append_chat_log(request.message, reply)
-
-        return ChatResponse(
-            ok=True,
-            reply=reply,
-            model=load_config().get("ollama_model", "gpt-oss:20b"),
-            time=datetime.now().isoformat(timespec="seconds")
-        )
-
-    tool_result = route_tool_request(PROJECT_PATH, request.message)
-
-    if not tool_result.get("handled"):
-        try:
-            from app import web_search as web_search_module
-
-            if (
-                planning.needs_web
-                and (
-                    web_search_module.is_current_info_request(request.message)
-                    or web_search_module.is_automatic_web_search_request(request.message)
-                )
-            ):
-                tool_result = _build_web_search_chat_result(request.message)
-        except Exception as error:
-            tool_result = {
-                "handled": True,
-                "tool": "web_search",
-                "result": {"ok": False, "error": str(error), "query": request.message},
-                "reply": f"Web search routing failed before the model could answer: {error}",
-            }
-
-    if tool_result.get("handled"):
-        reply = str(tool_result.get("reply") or "").strip()
-        if not reply:
-            reply = (
-                "The request was routed to a tool, but the tool returned no visible reply. "
-                "Check the tool result and server logs."
-            )
-        reply = _validate_planned_reply(planning, reply)
-
-        tool_name = str(tool_result.get("tool", "tool_router"))
-        tool_policy = get_tool_policy(tool_name)
-
-        log_tool_event(
-            PROJECT_PATH,
-            tool=tool_name,
-            action="chat",
-            request={"message": request.message},
-            result=tool_result.get("result", tool_result),
-        )
-        _audit(
-            category="chat_tool",
-            action=tool_name,
-            outcome="success" if tool_result.get("result", tool_result).get("ok", True) else "failure",
-            risk_level=_audit_risk(str(tool_policy.get("risk_level", "medium"))),
-            reason="Chatin työkalupyyntö käsiteltiin.",
-            details={"message": request.message, "handled": True, "tool_policy": tool_policy},
-        )
-        try:
-            write_trace(
-                PROJECT_PATH,
-                event="chat_tool_route",
-                user_message=request.message,
-                route="tool_router",
-                decision="handled",
-                tool=tool_name,
-                details={"tool_policy": tool_policy, "result_ok": tool_result.get("result", tool_result).get("ok", True)},
-            )
-        except Exception:
-            pass
-
-        append_chat_log(request.message, reply)
-
-        return ChatResponse(
-            ok=True,
-            reply=reply,
-            model=load_config().get("ollama_model", "gpt-oss:20b"),
-            time=datetime.now().isoformat(timespec="seconds"),
-            actions=tool_result.get("actions") or None,
-        )
-
-    prompt = build_sade_prompt(request.message, planning)
-    try:
-        reply = ask_ollama(prompt)
-    except HTTPException as error:
-        if error.status_code == 502 and planning.needs_web:
-            try:
-                tool_result = _build_web_search_chat_result(request.message, reason="model_provider_fallback")
-                reply = _validate_planned_reply(planning, str(tool_result.get("reply") or "").strip())
-                if reply:
-                    append_chat_log(request.message, reply)
-                    return ChatResponse(
-                        ok=True,
-                        reply=reply,
-                        model=load_config().get("ollama_model", "gpt-oss:20b"),
-                        time=datetime.now().isoformat(timespec="seconds"),
-                        actions=tool_result.get("actions") or None,
-                    )
-            except Exception:
-                pass
-        raise
-    try:
-        write_trace(
-            PROJECT_PATH,
-            event="chat_llm_route",
-            user_message=request.message,
-            route="model_provider",
-            decision="generated_reply",
-            details={"model": load_config().get("ollama_model", "gpt-oss:20b"), "reply_chars": len(reply)},
-        )
-    except Exception:
-        pass
-
-    reply = _validate_planned_reply(planning, reply)
-    append_chat_log(request.message, reply)
-
-    return ChatResponse(
-        ok=True,
-        reply=reply,
-        model=load_config().get("ollama_model", "gpt-oss:20b"),
-        time=datetime.now().isoformat(timespec="seconds")
+    result = handle_chat_message(
+        request.message,
+        ChatPipelineDependencies(
+            project_path=PROJECT_PATH,
+            sade_memory_path=SADE_MEMORY_PATH,
+            memory_entry_class=MemoryEntry,
+            append_chat_log=append_chat_log,
+            load_config=load_config,
+            append_markdown_entry=append_markdown_entry,
+            extract_memory_command=extract_memory_command,
+            handle_learning_review_chat_command=_handle_learning_review_chat_command,
+            handle_learning_chat_command=_handle_learning_chat_command,
+            handle_task_chat_command=_handle_task_chat_command,
+            handle_rag_chat_command=_handle_rag_chat_command,
+            route_tool_request=route_tool_request,
+            build_web_search_chat_result=_build_web_search_chat_result,
+            get_tool_policy=get_tool_policy,
+            log_tool_event=log_tool_event,
+            audit=_audit,
+            audit_risk=_audit_risk,
+            build_sade_prompt=build_sade_prompt,
+            ask_ollama=ask_ollama,
+            get_chat_context=get_chat_context,
+        ),
     )
+    if isinstance(result, JSONResponse):
+        return result
+    return ChatResponse(**result)
 
 
 @app.get("/login", response_class=HTMLResponse)

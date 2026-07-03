@@ -447,6 +447,7 @@
                                 <div class="actions">
                                     <button onclick="runStaticEvals()">Run static evals</button>
                                     <button class="secondary" onclick="runLiveEvals()">Run live evals</button>
+                                    <button class="secondary" onclick="loadDebugTraceSummary()">Route summary</button>
                                     <button class="secondary" onclick="loadDebugTrace()">Show trace</button>
                                     <button class="secondary" onclick="loadToolPolicies()">Tool risks</button>
                                 </div>
@@ -616,6 +617,7 @@
     }
 
     function addChatActions(actions) {
+        clearChatActions();
         if (!Array.isArray(actions) || !actions.length) return;
         const chatBox = document.getElementById("chatBox");
         const wrapper = document.createElement("div");
@@ -634,6 +636,10 @@
         });
         chatBox.appendChild(wrapper);
         chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function clearChatActions() {
+        document.querySelectorAll(".chat-actions").forEach(node => node.remove());
     }
 
     function clearVisibleChat() {
@@ -784,6 +790,7 @@ async function sendChat() {
             return;
         }
 
+        clearChatActions();
         addChatLine("You", message);
         messageBox.value = "";
         document.getElementById("status").innerText = "Assistant is thinking...";
@@ -1375,6 +1382,18 @@ async function loadDebugTrace() {
     box.innerText = "Loading trace log...";
     try {
         const response = await fetch("/debug/trace?limit=30");
+        const data = await response.json();
+        box.innerText = JSON.stringify(data, null, 2);
+    } catch (error) {
+        box.innerText = "Connection error: " + error;
+    }
+}
+
+async function loadDebugTraceSummary() {
+    const box = document.getElementById("aiQualityResult");
+    box.innerText = "Loading route summary...";
+    try {
+        const response = await fetch("/debug/trace/summary?limit=40");
         const data = await response.json();
         box.innerText = JSON.stringify(data, null, 2);
     } catch (error) {

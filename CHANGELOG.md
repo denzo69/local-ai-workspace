@@ -29,7 +29,7 @@ All notable changes to Local AI Workspace are documented here.
 - Finnish language capability questions no longer trigger Self-State output.
 - Health/lifestyle prompts do not receive unrelated business or tax suggestions.
 
-- Local test status: `197 passed`.
+- Local test status: `223 passed`.
 - Total coverage: `89%`.
 
 ### Notes

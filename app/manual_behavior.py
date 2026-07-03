@@ -31,6 +31,7 @@ BUSINESS_LEAK_TERMS = (
 LOCAL_PLACE_TERMS = (
     "lieksa",
     "lieksassa",
+    "lieksasta",
     "lieksan",
     "koli",
     "kolilla",
@@ -39,6 +40,7 @@ LOCAL_PLACE_TERMS = (
     "joensuussa",
     "joensuun",
     "nurmes",
+    "nurmeksen",
     "nurmeksessa",
     "helsinki",
     "helsingissa",
@@ -74,6 +76,27 @@ LOCAL_EXTERNAL_TERMS = (
     "aukioloajat",
     "saatavuus",
     "saatavilla",
+    "yhteystiedot",
+    "yhteystieto",
+    "puhelinnumero",
+    "puhelin numero",
+    "puhelin",
+    "sahkoposti",
+    "sähköposti",
+    "email",
+    "osoite",
+    "osoitteen",
+    "sijainti",
+    "terveyskeskus",
+    "terveyskeskuk",
+    "terveysasema",
+    "terveysaseman",
+    "asema",
+    "aseman",
+    "juna asema",
+    "juna-asema",
+    "rautatieasema",
+    "rautatieaseman",
     "tapahtumat",
     "tanaan",
     "nyt",
@@ -260,6 +283,15 @@ def _date_time_reply(text: str) -> str:
 
 
 def _is_local_external_question(text: str) -> bool:
+    contact_lookup_terms = (
+        "yhteystiedot", "yhteystieto", "puhelinnumero", "puhelin numero",
+        "puhelin", "sahkoposti", "sähköposti", "email", "osoite", "osoitteen",
+        "sijainti", "aukioloajat", "aukiolo", "terveyskeskus", "terveyskeskuk",
+        "terveysasema", "terveysaseman", "rautatieasema", "juna asema", "juna-asema",
+    )
+    if any(term in text for term in contact_lookup_terms):
+        return True
+
     has_place = any(place in text for place in LOCAL_PLACE_TERMS)
     has_external_term = any(term in text for term in LOCAL_EXTERNAL_TERMS)
     near_me_lookup = any(term in text for term in ("lahin", "lahella", "near me")) and has_external_term
@@ -384,8 +416,6 @@ def _general_knowledge_reply(text: str) -> str:
 
 def _is_health_lifestyle_question(text: str) -> bool:
     health_terms = (
-        "kahvi",
-        "kahvia",
         "kofeiini",
         "energiajuoma",
         "uni",
@@ -406,10 +436,10 @@ def _is_health_lifestyle_question(text: str) -> bool:
 
 
 def _health_lifestyle_reply(text: str) -> str:
-    if "kahvi" in text or "kofeiini" in text:
+    if "kofeiini" in text:
         return (
-            "Yleisesti kaksi kuppia kahvia aamulla ei ole useimmille liikaa, jos se ei aiheuta sydämentykytystä, levottomuutta, vatsaoireita, verenpaineen nousua tai univaikeuksia. "
-            "Määrä riippuu kupin koosta, kahvin vahvuudesta ja omasta kofeiininsietokyvystä. Jos kahvi tekee olon levottomaksi tai heikentää unta, määrää kannattaa vähentää tai siirtää kahvi aiemmaksi päivään."
+            "Kofeiini voi vaikuttaa vireyteen ja uneen, mutta vaikutus riippuu määrästä, ajankohdasta ja omasta herkkyydestä. "
+            "Jos kofeiini aiheuttaa levottomuutta, vatsaoireita tai heikentää unta, määrää kannattaa vähentää tai siirtää aikaisempaan päivään."
         )
     if "energiajuoma" in text:
         return (

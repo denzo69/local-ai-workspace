@@ -18,6 +18,7 @@ INTENTS = {
     "safety_secret_request",
     "destructive_action_request",
     "assistant_permissions",
+    "project_identity",
     "self_state_request",
     "project_status_request",
     "date_time",
@@ -43,6 +44,7 @@ ROUTING_PRIORITY = {
     "safety_secret_request": 1,
     "destructive_action_request": 1,
     "assistant_permissions": 2,
+    "project_identity": 3,
     "self_state_request": 3,
     "project_status_request": 3,
     "date_time": 4,
@@ -71,6 +73,11 @@ RESPONSE_CONTRACTS: Dict[str, Dict[str, Any]] = {
         "response_mode": "capability_boundary",
         "needs_web": False,
         "forbidden": ["human_rights_sources", "business_suggestions", "self_state_dump"],
+    },
+    "project_identity": {
+        "response_mode": "project_identity",
+        "needs_web": False,
+        "forbidden": ["web_search", "business_suggestions", "unsupported_claims"],
     },
     "general_knowledge": {
         "response_mode": "general_answer",
@@ -160,13 +167,32 @@ def _contains_sleep_term(text: str) -> bool:
 
 
 def _is_continuation_request(text: str) -> bool:
-    return _contains_any(
-        text,
-        (
-            "jatka", "kerro lisaa", "kerro lisää", "tuosta", "tuohon", "edellinen",
-            "edellisesta", "edellisestä", "se asia", "siita", "siitä", "tarkenna",
-            "continue", "go on", "that answer", "previous", "tell me more",
-        ),
+    # Keep this deliberately narrower than "any pronoun".
+    # Words such as "tämä/tuo/sen" can appear in standalone questions
+    # ("Onko tämä valmis SaaS palvelu?") and must not pull old chat context in.
+    phrases = (
+        "kerro lisaa", "kerro lisää", "se asia", "mika olisi hyva", "mikä olisi hyvä",
+        "tayte siihen", "täyte siihen", "mika niista", "mikä niistä",
+        "mita siella", "mitä siellä", "miten se", "miksi se", "mika siina", "mikä siinä",
+        "mika siita", "mikä siitä", "mita siita", "mitä siitä", "tarvitaanko tahan",
+        "tarvitaanko tähän", "go on", "that answer", "tell me more",
+    )
+    word_markers = (
+        "jatka", "tuosta", "tuohon", "edellinen", "edellisesta", "edellisestä",
+        "siita", "siitä", "siihen", "sille", "siella", "siellä", "sinne", "sielta", "sieltä",
+        "noista", "niista", "niistä",
+        "entä", "enta", "tarkenna", "continue", "previous",
+    )
+    return any(phrase in text for phrase in phrases) or any(
+        re.search(rf"\b{re.escape(marker)}\b", text) for marker in word_markers
+    )
+
+
+def _contains_weather_term(text: str) -> bool:
+    return (
+        _has_word(text, "saa")
+        or _has_word(text, "sää")
+        or _contains_any(text, ("weather", "lunta", "snow", "lumitilanne"))
     )
 
 
@@ -178,10 +204,13 @@ def _language(original: str, ascii_text: str) -> str:
     if _contains_any(
         ascii_text,
         (
-            "mika", "mita", "minka", "minkalainen", "onko", "voitko",
+            "mika", "mita", "minka", "minkalainen", "onko", "voitko", "miten",
             "suome", "suomeksi", "selita", "kerro", "muista", "nayta",
-            "hyva", "paljonko", "pitka", "pitkaan", "kokoinen", "veneeseen",
-            "lunta", "saa", "kahvi",
+            "hyva", "paljon", "paljonko", "pitka", "pitkaan", "kokoinen", "veneeseen",
+            "lunta", "saa", "kahvi", "lieksan", "yhteystiedot", "puhelin",
+            "osoite", "terveyskeskus", "asema", "aukiolo", "sahkoposti", "pullataikina",
+            "projektimme", "projekti", "autohuolto", "autohuollot", "korjaamo",
+            "tayte", "täyte", "siihen",
         ),
     ):
         return "fi"
@@ -282,6 +311,45 @@ def plan_response(message: str) -> IntentDecision:
             reason="assistant_or_tool_permission_question",
         )
 
+    fresh_information_terms = (
+        "uusimmat", "uusin", "ajantasainen", "ajantasaiset", "tuoreimmat", "viimeisimmat",
+        "viimeisimmät", "mita uutta", "mitä uutta", "tiedetaan nyt", "tiedetään nyt",
+        "uusimmat lahteet", "uusimmat lähteet", "hae uusimmat", "latest", "current",
+        "recent", "state of the art", "2026",
+    )
+    if _contains_any(text, fresh_information_terms):
+        return _decision(
+            "current_external_information",
+            language=language,
+            needs_web=True,
+            response_mode="source_bounded_answer",
+            use_chat_context=use_chat_context,
+            blocked_context_domains=BUSINESS_DOMAINS + PROJECT_DOMAINS,
+            required=["source_boundary"],
+            reason="fresh_or_current_information_request",
+        )
+
+    project_identity_terms = (
+        "mika on projektimme",
+        "mika on on projektimme",
+        "mika tama projekti on",
+        "mika tämä projekti on",
+        "kerro projektistamme",
+        "kerro tasta projektista",
+        "kerro tästä projektista",
+        "what is this project",
+        "what is our project",
+    )
+    if _contains_any(text, project_identity_terms):
+        return _decision(
+            "project_identity",
+            language=language,
+            response_mode="project_identity",
+            use_chat_context=False,
+            blocked_context_domains=BUSINESS_DOMAINS + ["web_search"],
+            reason="project_identity_question",
+        )
+
     if _contains_any(text, ("suomenkielen taito", "suomen kielen taito", "osaat suomea", "osaatko suomea", "finnish language", "speak finnish")):
         return _decision(
             "finnish_language_capability",
@@ -319,6 +387,7 @@ def plan_response(message: str) -> IntentDecision:
         (
             "mika paiva", "mika paiva tanaan", "paivamaara", "nykyinen paivamaara",
             "tanaan on", "what day is it", "current date", "kellonaika", "paljonko kello",
+            "paljon kello", "paljonko kello on", "paljon kello on", "mita kello on",
         ),
     ):
         return _decision(
@@ -392,8 +461,104 @@ def plan_response(message: str) -> IntentDecision:
             reason="business_or_work_money_prompt",
         )
 
-    health_terms = ("kahvi", "kofeiini", "caffeine", "energiajuoma", "terveys", "health", "food", "ruoka")
-    if _contains_any(text, health_terms) or _contains_sleep_term(text):
+    local_lookup_places = (
+        "lieksa", "lieksan", "lieksassa", "lieksasta",
+        "joensuu", "joensuun", "joensuussa", "joensuusta",
+        "nurmes", "nurmeksen", "nurmeksessa", "nurmeksesta",
+        "helsinki", "helsingin", "helsingissa", "helsingissä",
+        "kuopio", "kuopion",
+        "joensuuhun", "lieksaan",
+        "koli", "kolin", "pielinen", "pielisen", "ruunaa", "ruunaan", "kajaani", "kajaanin",
+        "suomi", "suomessa", "lahella", "lähellä", "near me",
+    )
+    local_external_terms = (
+        "nahtavaa", "nähtävää", "loytyy", "löytyy", "loydan", "löydän", "kohde", "kohteet", "kansallispuisto", "retkeilyalue",
+        "ulkoilureitti", "reitti", "uimaranta", "kalastus", "kalastaa", "veneilla", "veneillä",
+        "auringonlasku", "kaupunki", "keskusta", "keskustassa", "tekemista", "tekemistä",
+        "historia", "katsomassa", "huoltaa auton", "huolto", "huoltaa",
+        "kahvila", "kahvilaa", "ravintola", "ruokakauppa", "ruokakauppoja", "apteekki",
+        "kirjasto", "uimahalli", "terveyskeskus", "hammashoito", "majoitus", "yopya", "yöpyä",
+        "pysakointi", "pysäköinti", "parkkipaikka", "parkki", "tapahtuma", "tapahtumat",
+        "tapahtumista", "viikonloppuna", "hairiotiedot", "häiriötiedot", "lahimman", "lähimmän",
+        "vertautuu",
+        "bussi", "bussiyhteydet", "juna", "junia", "rautatieasema", "taksi", "aikataulu",
+        "aikataulut", "kulkeeko", "paasen", "pääsen", "matka", "kestaa", "kestää",
+        "auki", "aukiolo", "aukioloajat", "yhteystiedot", "osoite", "sijainti",
+    )
+    context_external_followup_terms = (
+        "siella", "siellä", "sinne", "sielta", "sieltä", "niista", "niistä",
+        "lahella", "lähellä", "lahelta", "läheltä", "autolla",
+        "auki", "aukiolo", "parkkipaikka", "kahvila", "ravintola", "uimaranta",
+        "juna", "bussi", "taksi", "matka", "kestaa", "kestää", "yhteystiedot",
+        "lipun", "lippu", "liikenneyhteydet", "liikenne", "tapahtumia", "vertautuu",
+    )
+    contact_lookup_terms = (
+        "yhteystiedot", "yhteystieto", "puhelinnumero", "puhelin numero",
+        "puhelin", "sahkoposti", "email", "osoite", "osoitteen",
+        "aukioloajat", "aukiolo", "sijainti", "missä sijaitsee", "missa sijaitsee",
+        "terveyskeskus", "terveyskeskuk", "terveysasema", "terveysaseman",
+        "rautatieasema", "juna asema", "juna-asema",
+    )
+    if _contains_any(text, contact_lookup_terms):
+        return _decision(
+            "current_external_information",
+            language=language,
+            needs_web=True,
+            response_mode="source_bounded_answer",
+            use_chat_context=use_chat_context,
+            blocked_context_domains=BUSINESS_DOMAINS,
+            required=["source_boundary"],
+            reason="contact_or_address_lookup",
+        )
+
+    if (
+        (_contains_any(text, local_lookup_places) and _contains_any(text, local_external_terms))
+        or (use_chat_context and _contains_any(text, context_external_followup_terms))
+        or (
+            _contains_any(text, ("auki", "viikonloppuna", "lahimman", "lähimmän", "hairiotiedot", "häiriötiedot", "tapahtumista", "bussi ei tule"))
+            and _contains_any(text, ("kirjasto", "apteekki", "taksi", "bussi", "juna", "tapahtuma", "tapahtumat", "tapahtumista", "kahvila", "ravintola"))
+        )
+    ):
+        return _decision(
+            "current_external_information",
+            language=language,
+            needs_web=True,
+            response_mode="source_bounded_answer",
+            use_chat_context=use_chat_context or not _contains_any(text, local_lookup_places),
+            blocked_context_domains=BUSINESS_DOMAINS + PROJECT_DOMAINS,
+            required=["source_boundary"],
+            reason="local_nature_city_transport_or_service_lookup",
+        )
+
+    food_or_compatibility_terms = (
+        "kauramaito", "maito", "kahvi", "kahviin", "torttutaikina", "pullataikina",
+        "taikina", "tayte", "täyte", "resepti", "ruoka", "food",
+    )
+    compatibility_question_terms = (
+        "kayko", "käykö", "sopiiko", "voiko kayttaa", "voiko käyttää",
+        "mika olisi hyva", "mikä olisi hyvä", "hyva vaihtoehto", "hyvä vaihtoehto",
+    )
+    if (
+        not use_chat_context
+        and _contains_any(text, food_or_compatibility_terms)
+        and _contains_any(text, compatibility_question_terms)
+    ):
+        return _decision(
+            "current_external_information",
+            language=language,
+            needs_web=True,
+            response_mode="source_bounded_answer",
+            use_chat_context=use_chat_context,
+            blocked_context_domains=BUSINESS_DOMAINS + PROJECT_DOMAINS,
+            required=["source_boundary"],
+            reason="practical_food_or_compatibility_lookup",
+        )
+
+    health_terms = ("kofeiini", "caffeine", "energiajuoma", "terveys", "health")
+    coffee_health_terms = ("liikaa", "vaikuttaa uneen", "univaike", "sydan", "sydän", "oire", "verenpaine")
+    if _contains_any(text, health_terms) or _contains_sleep_term(text) or (
+        _contains_any(text, ("kahvi", "kahvia")) and _contains_any(text, coffee_health_terms)
+    ):
         return _decision(
             "health_lifestyle_general",
             language=language,
@@ -413,6 +578,27 @@ def plan_response(message: str) -> IntentDecision:
             reason="local_ollama_disk_space_instruction",
         )
 
+    purchase_or_local_service_terms = (
+        "mista voisin ostaa", "mista ostaa", "missa myydaan", "mista loydan",
+        "mista löytyy", "mista loytyy", "myydaan", "kauppa",
+        "near me", "lahin", "lahella", "autohuolto", "autohuollot", "korjaamo",
+        "korjaamot", "huoltamo", "huoltamot", "autokorjaamo", "autokorjaamot",
+    )
+    if _contains_any(text, purchase_or_local_service_terms) or (
+        _contains_any(text, ("ostaa", "osta", "myydaan", "kauppa", "autohuolto", "autohuollot", "korjaamo", "huoltamo"))
+        and _contains_any(text, local_lookup_places)
+    ):
+        return _decision(
+            "current_external_information",
+            language=language,
+            needs_web=True,
+            response_mode="source_bounded_answer",
+            use_chat_context=use_chat_context,
+            blocked_context_domains=BUSINESS_DOMAINS,
+            required=["source_boundary"],
+            reason="purchase_or_local_service_lookup",
+        )
+
     practical_everyday_terms = (
         "kesarenkaat", "kesarenkaita", "renkaat", "renkaita", "autooni", "autoon",
         "ostaa", "ostamassa", "huomioida", "kannattaa huomioida", "ankkuri", "veneeseen",
@@ -424,7 +610,7 @@ def plan_response(message: str) -> IntentDecision:
             "practical_everyday",
             language=language,
             response_mode="practical_instruction",
-            use_chat_context=False,
+            use_chat_context=use_chat_context,
             blocked_context_domains=BUSINESS_DOMAINS + PROJECT_DOMAINS + ["web_search"],
             reason="practical_everyday_instruction",
         )
@@ -442,10 +628,9 @@ def plan_response(message: str) -> IntentDecision:
             reason="source_or_rag_question",
         )
 
-    weather_terms = ("saa", "weather", "lunta", "snow", "lumitilanne")
     current_terms = ("nyt", "tanaan", "today", "current", "talla hetkella", "paljonko")
     place_terms = ("lieksa", "koli", "nurmes", "joensuu", "helsinki", "suomessa")
-    if _contains_any(text, weather_terms) and (_contains_any(text, current_terms) or _contains_any(text, place_terms)):
+    if _contains_weather_term(text) and (_contains_any(text, current_terms) or _contains_any(text, place_terms)):
         if "talvella" in text and not _contains_any(text, ("nyt", "tanaan", "today", "lieksa", "koli", "nurmes")):
             return _decision(
                 "general_knowledge",
@@ -538,6 +723,22 @@ def build_direct_response(decision: IntentDecision, message: str, *, now: Option
             "erillisen hyväksynnän."
         )
 
+    if decision.intent == "project_identity":
+        if language == "en":
+            return (
+                "Our project is **Local AI Workspace**: a portfolio-stage, local-first AI assistant built with "
+                "Python and FastAPI. It demonstrates chat, Ollama/local model use, memory, RAG/source handling, "
+                "web search with source boundaries, authentication, audit logging, prompt-injection checks, "
+                "response planning and automated tests. It is a portfolio and learning project, not a production SaaS service."
+            )
+        return (
+            "Projektimme on **Local AI Workspace**: portfolio-vaiheessa oleva paikallinen AI-työtila, joka on rakennettu "
+            "Pythonilla ja FastAPIlla. Se esittelee chatin, Ollama-/paikallismallin käytön, muistin, RAG-/lähdekäsittelyn, "
+            "verkkonhaun lähderajoilla, kirjautumissuojauksen, audit-lokin, prompt injection -suojatestit, "
+            "vastausten reitityksen ja automatisoidut testit.\n\n"
+            "Tärkeä rajaus: tämä on työnhakua ja oppimista tukeva portfolio-projekti, ei tuotantovalmis SaaS-palvelu."
+        )
+
     if decision.intent == "finnish_language_capability":
         return (
             "Osaan keskustella suomeksi ja voin pitää käyttöliittymän sekä vastaukset suomenkielisinä, "
@@ -563,19 +764,7 @@ def build_direct_response(decision: IntentDecision, message: str, *, now: Option
                 "ottaa puheeksi terveydenhuollon ammattilaisen kanssa. Tämä on yleistä elämäntapaneuvoa, "
                 "ei henkilökohtainen lääketieteellinen arvio."
             )
-        if "kahvi" in text or "kofeiini" in text or "caffeine" in text:
-            return (
-                "Kaksi kuppia kahvia aamulla ei ole useimmille aikuisille automaattisesti liikaa, mutta "
-                "sopiva määrä riippuu omasta kofeiiniherkkyydestä, unesta, sydämentykytyksistä ja siitä, "
-                "juotko kofeiinia myös myöhemmin päivällä. Jos kahvi heikentää unta, aiheuttaa levottomuutta "
-                "tai vatsaoireita, määrää kannattaa vähentää. Tämä on yleistä elämäntapaneuvoa, ei "
-                "henkilökohtainen lääketieteellinen arvio."
-            )
-        return (
-            "Tähän voi vastata yleisellä tasolla, mutta henkilökohtainen vaikutus riippuu terveydestä, "
-            "unesta, lääkityksistä ja omasta herkkyydestä. Jos oireita tulee tai asia huolettaa, kannattaa "
-            "kysyä terveydenhuollon ammattilaiselta."
-        )
+        return None
 
     if decision.intent == "practical_everyday":
         if _contains_any(text, ("kesarenkaat", "kesarenkaita", "renkaat", "renkaita", "autooni", "autoon")):

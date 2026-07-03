@@ -27,7 +27,7 @@ def test_readme_has_portfolio_sections() -> None:
     assert "What this project demonstrates" in readme
     assert "Architecture" in readme
     assert "Suggested demo flow" in readme
-    assert "197 tests passing locally" in readme
+    assert "223 tests passing locally" in readme
     assert "89% total test coverage" in readme
     assert "Known limitations" in readme
     assert "MIT License" in readme

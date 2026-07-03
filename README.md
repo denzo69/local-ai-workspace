@@ -116,7 +116,7 @@ Run the test suite:
 
 Current local status:
 
-- 197 tests passing locally.
+- 223 tests passing locally.
 - 89% total test coverage.
 - GitHub Actions: passing.
 - Targeted hardening covers auth/session safety, project health reporting, upload validation, manual AI behavior checks, RAG, web search, automatic factual-search routing, model provider fallback, tool routing, API routes, live eval entrypoints and cleanup paths.

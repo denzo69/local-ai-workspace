@@ -383,6 +383,7 @@ def test_chat_weather_request_returns_visible_web_search_reply(isolated_main: Pa
         }
 
     monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr(main, "ask_ollama", lambda prompt: "Weather answer from search snippets.")
     monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
     monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
 
@@ -392,7 +393,197 @@ def test_chat_weather_request_returns_visible_web_search_reply(isolated_main: Pa
     assert response.status_code == 200
     body = response.json()
     assert body["reply"].strip()
+    assert "Weather answer from search snippets" in body["reply"]
     assert "Lieksa weather" in body["reply"]
+
+    client.close()
+
+
+def test_chat_local_tire_purchase_uses_manual_external_search_before_direct_advice(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_search(_root: Path, query: str, max_results: int = 6):
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "unit",
+            "results": [
+                {
+                    "rank": 1,
+                    "title": "Lieksan Rengas",
+                    "url": "https://example.com/renkaat",
+                    "source": "example.com",
+                    "snippet": "Local tire shop result.",
+                }
+            ],
+        }
+
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+    monkeypatch.setattr(main, "ask_ollama", lambda prompt: "Lieksasta kannattaa etsi? rengasliikkeit? hakutulosten perusteella.")
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post(
+        "/chat",
+        json={"message": "mistä voisin mahdollisesti ostaa autooni renkaat lieksasta"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "rengasliik" in reply.lower()
+    assert "Lieksan Rengas" in reply
+    assert "Git" not in reply
+
+    client.close()
+
+
+def test_chat_lieksa_train_station_address_routes_to_web_not_llm_fallback(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    traces = []
+
+    def fake_trace(*args, **kwargs):
+        traces.append(kwargs)
+
+    def fake_search(_root: Path, query: str, max_results: int = 6):
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "test",
+            "results": [
+                {
+                    "rank": 1,
+                    "title": "Lieksan rautatieasema - VR",
+                    "url": "https://example.test/lieksa-station",
+                    "source": "example.test",
+                    "snippet": "Lieksan rautatieaseman osoitetiedot ja asemapalvelut.",
+                }
+            ],
+        }
+
+    def fake_ollama(prompt: str) -> str:
+        assert "Hakutulosten otsikot" in prompt
+        assert "Lieksan rautatieasema" in prompt
+        return "Hakutulosten perusteella kyse on Lieksan rautatieasemasta. Tarkista tarkka osoite VR:n asemasivulta."
+
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr("app.chat_pipeline.write_trace", fake_trace)
+    monkeypatch.setattr(main, "ask_ollama", fake_ollama)
+    monkeypatch.setattr(main, "route_tool_request", lambda path, message: (_ for _ in ()).throw(AssertionError("should not reach tool router")))
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post(
+        "/chat",
+        json={"message": "Voitko kertoa Lieksan juna aseman osoitteen?"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "Lieksan rautatieasemasta" in reply
+    assert "Lieksan rautatieasema - VR" in reply
+    assert "Local AI Workspace" not in reply
+    assert "oikeudet" not in reply.lower()
+
+    events = [item.get("event") for item in traces]
+    assert "manual_behavior_checked" in events
+    assert "manual_behavior_handled" in events
+    assert "llm_fallback_used" not in events
+    assert any((item.get("details") or {}).get("route_used") == "web_search" for item in traces)
+
+    client.close()
+
+
+def test_chat_health_center_contact_info_routes_to_web_not_health_advice(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_search(_root: Path, query: str, max_results: int = 6):
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "test",
+            "results": [
+                {
+                    "rank": 1,
+                    "title": "Lieksan terveyskeskus yhteystiedot",
+                    "url": "https://example.test/lieksa-health-center",
+                    "source": "example.test",
+                    "snippet": "Lieksan terveyskeskuksen yhteystiedot, osoite ja puhelinnumero.",
+                }
+            ],
+        }
+
+    def fake_ollama(prompt: str) -> str:
+        assert "Hakutulosten otsikot" in prompt
+        assert "Lieksan terveyskeskus" in prompt
+        return "Hakutulosten perusteella kyse on Lieksan terveyskeskuksen yhteystiedoista. Tarkista ajantasainen osoite ja puhelinnumero lähteestä."
+
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr(main, "ask_ollama", fake_ollama)
+    monkeypatch.setattr(main, "route_tool_request", lambda path, message: (_ for _ in ()).throw(AssertionError("should not reach tool router")))
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post(
+        "/chat",
+        json={"message": "Lieksan terveyskeskuksen yhteystiedot"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "terveyskeskuksen yhteystiedoista" in reply
+    assert "Lieksan terveyskeskus yhteystiedot" in reply
+    assert "henkilökohtainen vaikutus" not in reply
+    assert "unesta" not in reply
+    assert "lääkityksistä" not in reply
+
+    client.close()
+
+
+def test_chat_nurmes_health_center_contact_info_routes_to_web_not_health_advice(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_search(_root: Path, query: str, max_results: int = 6):
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "test",
+            "results": [
+                {
+                    "rank": 1,
+                    "title": "Nurmeksen terveyskeskus yhteystiedot",
+                    "url": "https://example.test/nurmes-health-center",
+                    "source": "example.test",
+                    "snippet": "Nurmeksen terveyskeskuksen yhteystiedot, osoite ja puhelinnumero.",
+                }
+            ],
+        }
+
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr(
+        main,
+        "ask_ollama",
+        lambda prompt: "Hakutulosten perusteella kyse on Nurmeksen terveyskeskuksen yhteystiedoista.",
+    )
+    monkeypatch.setattr(main, "route_tool_request", lambda path, message: (_ for _ in ()).throw(AssertionError("should not reach tool router")))
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post(
+        "/chat",
+        json={"message": "Nurmeksen terveyskeskuksen yhteystiedot"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "Nurmeksen terveyskeskuksen yhteystiedoista" in reply
+    assert "Nurmeksen terveyskeskus yhteystiedot" in reply
+    assert "henkilökohtainen vaikutus" not in reply
+    assert "lääkityksistä" not in reply
 
     client.close()
 
@@ -941,6 +1132,7 @@ def test_chat_factual_question_auto_routes_to_web_search(isolated_main: Path, mo
 
     monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
     monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr(main, "ask_ollama", lambda prompt: "Volvo Penta 2003T:n kulutuksesta l?ytyi teknisi? hakutuloksia, mutta tarkka arvo pit?? varmistaa l?hteest?.")
     monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
     monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
 
@@ -975,6 +1167,7 @@ def test_chat_recipe_instruction_auto_routes_to_web_search(isolated_main: Path, 
 
     monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
     monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr(main, "ask_ollama", lambda prompt: "Pullataikinaan l?ytyi reseptil?hde. Tee taikina l?hteen ohjeen mukaan ja tarkista m??r?t l?hteest?.")
     monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
     monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
 
@@ -985,6 +1178,424 @@ def test_chat_recipe_instruction_auto_routes_to_web_search(isolated_main: Path, 
     body = response.json()
     assert "Pullataikina resepti" in body["reply"]
     assert "Git" not in body["reply"]
+
+    client.close()
+
+
+def test_chat_plain_practical_purchase_question_can_search_and_answer(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_search(_root: Path, query: str, max_results: int = 6):
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "test",
+            "results": [
+                {
+                    "rank": 1,
+                    "title": "Marine store Joensuu",
+                    "url": "https://example.test/anchor-store",
+                    "source": "example.test",
+                    "snippet": "Boat anchors and boating supplies near Joensuu.",
+                }
+            ],
+        }
+
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr(
+        main,
+        "ask_ollama",
+        lambda prompt: "Joensuun seudulta kannattaa etsiä veneilytarvikeliikkeitä ja varmistaa ankkurin koko veneen painon mukaan.",
+    )
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post(
+        "/chat",
+        json={"message": "Mistä voisin ostaa veneeseen ankkurin Joensuusta?"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "Joensuun seudulta" in reply
+    assert "Marine store Joensuu" in reply
+    assert "Lähteet:" in reply
+
+    client.close()
+
+
+def test_chat_plain_recipe_question_searches_and_summarizes(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_search(_root: Path, query: str, max_results: int = 6):
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "test",
+            "results": [
+                {
+                    "rank": 1,
+                    "title": "Pullataikinan perusohje",
+                    "url": "https://example.test/pulla",
+                    "source": "example.test",
+                    "snippet": "Pullataikina tehdään maidosta, hiivasta, sokerista, kardemummasta, jauhoista ja voista.",
+                }
+            ],
+        }
+
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr(
+        main,
+        "ask_ollama",
+        lambda prompt: "Pullataikinan perusohjeessa käytetään maitoa, hiivaa, sokeria, kardemummaa, jauhoja ja voita.",
+    )
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post("/chat", json={"message": "Anna pullataikinan ohje"}, headers=headers)
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "Pullataikinan perusohjeessa" in reply
+    assert "Pullataikinan perusohje" in reply
+    assert "Git" not in reply
+
+    client.close()
+
+
+def test_chat_project_identity_question_uses_direct_response(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr(
+        main,
+        "ask_ollama",
+        lambda prompt: (_ for _ in ()).throw(AssertionError("project identity should not use model fallback")),
+    )
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post("/chat", json={"message": "Mikä on projektimme?"}, headers=headers)
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "Local AI Workspace" in reply
+    assert "portfolio" in reply.lower()
+    assert "tuotantovalmis SaaS" in reply
+
+    client.close()
+
+
+def test_chat_followup_question_uses_recent_chat_context(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_prompt = {}
+    main.CHAT_LOG_PATH.write_text(
+        """
+# Keskusteluloki
+
+---
+
+## Keskustelu 2026-07-03T10:00:00
+
+### Jani
+
+Kerrotko ohjeen torttutaikinaan
+
+### Säde
+
+Torttutaikina sopii joulutorttuihin. Hyviä täytevaihtoehtoja voi miettiä taikinan käyttötarkoituksen mukaan.
+""".strip(),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+
+    def fake_ask(prompt: str) -> str:
+        captured_prompt["prompt"] = prompt
+        return "Torttutaikinaan hyvä täyte on esimerkiksi luumumarmeladi, omenakanelitäyte tai vaniljarahka. Suolaisena vaihtoehtona käy juusto-sipuli- tai kasvis-täyte."
+
+    monkeypatch.setattr(main, "ask_ollama", fake_ask)
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post("/chat", json={"message": "Kiitos. Mikä olisi hyvä täyte siihen?"}, headers=headers)
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "Torttutaikinaan" in reply
+    assert "luumumarmeladi" in reply
+    assert "Local AI Workspace" not in reply
+    assert "torttutaikinaan" in captured_prompt["prompt"].lower()
+    assert "Keskustelun jatko-ohje" in captured_prompt["prompt"]
+
+    client.close()
+
+
+def test_chat_oat_milk_coffee_question_uses_model_not_old_coffee_template(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr(
+        "app.web_search.web_search",
+        lambda project_path, query, max_results=6: {
+            "ok": True,
+            "query": query,
+            "provider": "test",
+            "results": [
+                {
+                    "title": "Barista oat drink in coffee",
+                    "url": "https://example.test/oat-coffee",
+                    "snippet": "Barista oat drink is commonly used in coffee because it foams and tolerates heat better.",
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        "app.web_search.read_search_result_sources",
+        lambda result, max_sources=3: {
+            "ok": True,
+            "verified_count": 1,
+            "sources": [
+                {
+                    "title": "Barista oat drink in coffee",
+                    "final_url": "https://example.test/oat-coffee",
+                    "description": "Barista oat drink is commonly used in coffee because it foams and tolerates heat better.",
+                }
+            ],
+            "answer_summary": "Kauramaito käy kahviin, ja barista-versio toimii usein parhaiten.",
+        },
+    )
+
+    def fake_ask(prompt: str) -> str:
+        assert "Käykö kauramaito kahviin?" in prompt
+        assert "Barista oat drink" in prompt
+        return "Kyllä, kauramaito käy kahviin. Barista-tyyppinen kauramaito vaahtoutuu yleensä paremmin ja kestää kuumaa kahvia tavallista kaurajuomaa paremmin."
+
+    monkeypatch.setattr(main, "ask_ollama", fake_ask)
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post("/chat", json={"message": "Käykö kauramaito kahviin?"}, headers=headers)
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "kauramaito" in reply.lower()
+    assert "barista" in reply.lower()
+    assert "kaksi kuppia kahvia" not in reply.lower()
+    assert "Local AI Workspace" not in reply
+
+    client.close()
+
+
+def test_chat_local_service_followup_enriches_web_query_with_recent_place_context(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    captured = {}
+    main.CHAT_LOG_PATH.write_text(
+        """
+# Keskusteluloki
+
+---
+
+## Keskustelu 2026-07-03T12:00:00
+
+### Jani
+
+Mitä nähtävää Lieksassa on luonnon ystävälle?
+
+### Säde
+
+Lieksassa voi etsiä luontokohteita, Pielisen maisemia ja retkeilykohteita.
+""".strip(),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    def fake_contextual_web_search(project_path, query, max_results=6):
+        captured["query"] = query
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "test",
+            "results": [
+                {
+                    "title": "Kahvila Lieksa",
+                    "url": "https://example.test/kahvila-lieksa",
+                    "snippet": "Lieksan keskustasta löytyy kahviloita ja palveluita.",
+                }
+            ],
+        }
+
+    monkeypatch.setattr("app.web_search.web_search", fake_contextual_web_search)
+    monkeypatch.setattr(
+        "app.web_search.read_search_result_sources",
+        lambda result, max_sources=3: {
+            "ok": True,
+            "verified_count": 1,
+            "sources": [
+                {
+                    "title": "Kahvila Lieksa",
+                    "final_url": "https://example.test/kahvila-lieksa",
+                    "description": "Lieksan keskustasta löytyy kahviloita ja palveluita.",
+                }
+            ],
+            "answer_summary": "Lieksan läheltä kannattaa tarkistaa keskustan kahvilat ja niiden aukioloajat.",
+        },
+    )
+    monkeypatch.setattr(main, "ask_ollama", lambda prompt: "Lieksan lähellä kahvilaa etsiessä kannattaa tarkistaa keskustan kahvilat ja niiden aukioloajat.")
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post("/chat", json={"message": "Entä löytyykö läheltä kahvilaa?"}, headers=headers)
+
+    assert response.status_code == 200
+    assert "Lieksa" in captured["query"]
+    assert "kahvilaa" in captured["query"]
+    assert "Local AI Workspace" not in response.json()["reply"]
+
+    client.close()
+
+
+def test_chat_local_car_service_query_routes_to_web_search(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_search(_root: Path, query: str, max_results: int = 6):
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "test",
+            "results": [
+                {
+                    "rank": 1,
+                    "title": "Autohuolto Lieksa",
+                    "url": "https://example.test/autohuolto-lieksa",
+                    "source": "example.test",
+                    "snippet": "Autohuollot ja korjaamot Lieksassa.",
+                }
+            ],
+        }
+
+    def fake_inspect(url: str, timeout: int = 7):
+        return {
+            "ok": True,
+            "url": url,
+            "final_url": url,
+            "title": "Autohuolto Lieksa",
+            "description": "Lieksassa toimiva autohuolto tarjoaa määräaikaishuoltoja ja vikadiagnostiikkaa.",
+            "preview": "Autohuolto, korjaamo, yhteystiedot ja palvelut.",
+        }
+
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr("app.web_search.inspect_source", fake_inspect)
+    monkeypatch.setattr(main, "ask_ollama", lambda prompt: "Lieksasta löytyi autohuollon lähde. Tarkista palvelut ja yhteystiedot lähteestä.")
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post("/chat", json={"message": "Autohuollot Lieksassa"}, headers=headers)
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "Lieksasta löytyi autohuollon lähde" in reply
+    assert "Autohuolto Lieksa" in reply
+    assert "ongelmia auton huolloissa" not in reply
+
+    client.close()
+
+
+def test_chat_web_search_reads_sources_before_model_answer(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_prompt = {}
+
+    def fake_search(_root: Path, query: str, max_results: int = 6):
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "test",
+            "results": [
+                {
+                    "rank": 1,
+                    "title": "Nurmeksen terveyskeskus",
+                    "url": "https://example.test/nurmes-terveyskeskus",
+                    "source": "example.test",
+                    "snippet": "Nurmeksen terveyskeskuksen yhteystiedot.",
+                }
+            ],
+        }
+
+    def fake_inspect(url: str, timeout: int = 7):
+        return {
+            "ok": True,
+            "url": url,
+            "final_url": url,
+            "title": "Nurmeksen terveyskeskus",
+            "description": "Nurmeksen terveyskeskuksen osoite on Esimerkkikatu 1 ja puhelin on 010 123 4567.",
+            "preview": "Yhteystiedot, osoite ja puhelinnumero.",
+        }
+
+    def fake_ask(prompt: str) -> str:
+        captured_prompt["prompt"] = prompt
+        return "Nurmeksen terveyskeskuksen yhteystiedoista löytyi lähdeote, jossa mainitaan osoite Esimerkkikatu 1 ja puhelin 010 123 4567."
+
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr("app.web_search.inspect_source", fake_inspect)
+    monkeypatch.setattr(main, "ask_ollama", fake_ask)
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post("/chat", json={"message": "Nurmeksen terveyskeskuksen yhteystiedot"}, headers=headers)
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "Esimerkkikatu 1" in reply
+    assert "Nurmeksen terveyskeskus" in reply
+    assert "Luettu ote" in captured_prompt["prompt"]
+    assert "010 123 4567" in captured_prompt["prompt"]
+
+    client.close()
+
+
+def test_chat_web_search_falls_back_to_source_summary_when_model_fails(isolated_main: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_search(_root: Path, query: str, max_results: int = 6):
+        return {
+            "ok": True,
+            "query": query,
+            "provider": "test",
+            "results": [
+                {
+                    "rank": 1,
+                    "title": "Pullataikinan perusohje",
+                    "url": "https://example.test/pulla",
+                    "source": "example.test",
+                    "snippet": "Pullataikinan ohje.",
+                }
+            ],
+        }
+
+    def fake_inspect(url: str, timeout: int = 7):
+        return {
+            "ok": True,
+            "url": url,
+            "final_url": url,
+            "title": "Pullataikinan perusohje",
+            "description": "Pullataikina tehdään maidosta, hiivasta, sokerista, kardemummasta, jauhoista ja voista.",
+            "preview": "Sekoita ainekset, vaivaa taikina ja anna kohota.",
+        }
+
+    monkeypatch.setattr("app.dev_chat_commands.try_handle_dev_command", lambda path, message: None)
+    monkeypatch.setattr("app.web_search.web_search", fake_search)
+    monkeypatch.setattr("app.web_search.inspect_source", fake_inspect)
+    monkeypatch.setattr(
+        main,
+        "ask_ollama",
+        lambda prompt: (_ for _ in ()).throw(HTTPException(status_code=502, detail="model unavailable")),
+    )
+    monkeypatch.setattr(main, "log_tool_event", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_audit", lambda *a, **k: None)
+
+    client, headers = authenticated_client(isolated_main)
+    response = client.post("/chat", json={"message": "Miten teen pullataikinan?"}, headers=headers)
+
+    assert response.status_code == 200
+    reply = response.json()["reply"]
+    assert "Tarkistettujen lähteiden perusteella" in reply
+    assert "maidosta, hiivasta" in reply
+    assert "Pullataikinan perusohje" in reply
 
     client.close()
 

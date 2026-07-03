@@ -726,11 +726,13 @@ def route_tool_request(project_path: Path, message: str) -> Dict[str, Any]:
         "search web",
     ])
     explicit_web_search = explicit_web_search or is_explicit_web_search_request(original)
-    current_info_search = False if explicit_web_search else (planning.needs_web and is_current_info_request(original))
-    automatic_web_search = False if explicit_web_search else (planning.needs_web and is_automatic_web_search_request(original))
+    web_allowed = "web_search" not in getattr(planning, "blocked_context_domains", [])
+    planned_web_search = False if explicit_web_search else (web_allowed and planning.needs_web)
+    current_info_search = False if explicit_web_search else (web_allowed and planning.needs_web and is_current_info_request(original))
+    automatic_web_search = False if explicit_web_search else (web_allowed and is_automatic_web_search_request(original))
     pending_web_search = False if explicit_web_search else consume_pending_web_search(project_path, original)
 
-    if explicit_web_search or current_info_search or automatic_web_search or pending_web_search:
+    if explicit_web_search or planned_web_search or current_info_search or automatic_web_search or pending_web_search:
         query = extract_web_query(original) if explicit_web_search else original.strip()
         if not query:
             return {
@@ -1112,10 +1114,12 @@ def route_tool_preview(message: str) -> Dict[str, Any]:
     if is_explicit_web_search_request(message):
         return {"would_route": True, "tool": "web_search"}
 
-    if planning.needs_web and is_current_info_request(message):
+    web_allowed = "web_search" not in getattr(planning, "blocked_context_domains", [])
+
+    if web_allowed and planning.needs_web:
         return {"would_route": True, "tool": "web_search"}
 
-    if planning.needs_web and is_automatic_web_search_request(message):
+    if web_allowed and is_automatic_web_search_request(message):
         return {"would_route": True, "tool": "web_search"}
 
     # Goal Engine v1.1 — priorisoitu preview ennen yleistä omatilaa.

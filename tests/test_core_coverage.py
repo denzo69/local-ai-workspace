@@ -32,6 +32,8 @@ def test_web_search_intent_helpers_and_truthful_failure_reply() -> None:
     assert web_search.is_web_search_status_request("toimiiko verkkohaku")
     assert web_search.is_web_search_trial_request("kokeillaan verkkohakua")
     assert web_search.is_source_review_request("tarkista lähteet")
+    assert web_search.is_automatic_web_search_request("Nurmeksen terveyskeskuksen yhteystiedot")
+    assert not web_search.is_automatic_web_search_request("Mika on riittava maara unta yolla?")
 
     reply = web_search.format_web_search_reply(
         {"ok": False, "query": "testi", "provider": "duckduckgo_lite", "error": "offline"}
