@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
-USER_AGENT = "Sade-v1-local-web-search/1.0 (+local personal assistant)"
+USER_AGENT = "LocalAIWorkspace-web-search/1.0 (+local personal assistant)"
 DEFAULT_TIMEOUT = 12
 DEFAULT_MAX_RESULTS = 6
 PENDING_STATE_FILENAME = "web_search_state.json"

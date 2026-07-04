@@ -31,6 +31,8 @@ DANGER_PATTERNS = {
     "merge_conflict_middle": "=======",
     "merge_conflict_end": ">>>>>>>",
     "raw_validator_block": "The answer was blocked because it did not match the planned response path",
+    "stale_repo_name": "https://github.com/denzo69/sade-v1-local",
+    "stale_default_model": "gpt-oss:20b",
     "business_leak_dta": "DTA-sopimus",
     "business_leak_tax_card": "verokortti",
 }
@@ -185,6 +187,9 @@ def check_text_patterns(path: Path, warnings: list[str], errors: list[str]) -> N
             continue
 
         if pattern in text:
+            if name.startswith("stale_"):
+                errors.append(f"{relative}: contains stale public-surface value `{pattern}`")
+                continue
             warnings.append(f"{relative}: contains suspicious pattern `{pattern}`")
 
     if path.suffix == ".py" and len(text) > 120_000:

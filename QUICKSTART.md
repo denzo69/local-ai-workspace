@@ -3,8 +3,8 @@
 ## 1. Clone or open the project folder
 
 ```powershell
-git clone https://github.com/denzo69/sade-v1-local.git
-cd sade-v1-local
+git clone https://github.com/denzo69/local-ai-workspace.git
+cd local-ai-workspace
 ```
 
 If you already cloned the repository, open your existing local project folder instead.

@@ -24,7 +24,7 @@ Local AI Workspace demonstrates practical AI engineering rather than only prompt
 - local AI application architecture with FastAPI;
 - authentication, CSRF protection, audit logging and guarded file tools;
 - RAG, semantic memory, web-search truth boundaries and AI eval entrypoints;
-- response planning for intent routing, context gating and output validation before tool use;
+- response planning and answer grounding for intent routing, source selection, context gating and output validation before tool use;
 - deterministic safety routing for secret-file requests, destructive actions, missing-source claims and portfolio smoke tests;
 - test-driven hardening with pytest, coverage reports and release readiness checks;
 - portfolio-quality documentation and a maintainable GitHub project surface.
@@ -38,6 +38,7 @@ Local AI Workspace demonstrates practical AI engineering rather than only prompt
 - RAG and source quality checks for safer retrieval-assisted answers.
 - Prompt-injection detection and tool risk classification.
 - Response Planning Layer for intent routing, context gating and output validation before tool use.
+- Answer Grounding / Knowledge Source Selection Layer to choose between chat context, memory, project state, RAG, web search and model knowledge.
 - Deterministic safety routing for secret-file requests, destructive actions, missing-source claims and portfolio smoke tests.
 - Audit log and debug trace for safety and observability.
 - Project Health Dashboard with sanitized server, version, model, RAG, web search, audit, test, release, storage and privacy status.
@@ -116,9 +117,10 @@ Run the test suite:
 
 Current local status:
 
-- 223 tests passing locally.
-- 89% total test coverage.
+- 257 tests passing locally.
+- 88% total test coverage.
 - GitHub Actions: passing.
+- Large deterministic interaction baseline: 10,000 question chains / 40,000 routing checks / 0 failures.
 - Targeted hardening covers auth/session safety, project health reporting, upload validation, manual AI behavior checks, RAG, web search, automatic factual-search routing, model provider fallback, tool routing, API routes, live eval entrypoints and cleanup paths.
 
 Run coverage locally:

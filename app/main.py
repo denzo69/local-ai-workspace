@@ -383,7 +383,7 @@ class BackupRestoreRequest(BaseModel):
 def load_config():
     default_config = {
         "ollama_url": "http://127.0.0.1:11434/api/generate",
-        "ollama_model": "gpt-oss:20b",
+        "ollama_model": "llama3:latest",
         "temperature": 0.7,
         "num_ctx": 8192,
         "memory_context_chars": 6000,
@@ -676,7 +676,7 @@ def build_health_summary() -> Dict[str, Any]:
         "model": {
             "ok": True,
             "provider": str(config.get("model_provider", "ollama")),
-            "model": config.get("ollama_model", "gpt-oss:20b"),
+            "model": config.get("ollama_model", "llama3:latest"),
             "num_ctx": config.get("num_ctx", 8192),
         },
         "memory": {
@@ -1173,7 +1173,7 @@ def root():
         "name": "Local AI Workspace",
         "status": "awake",
         "message": "Local AI Workspace is running.",
-        "model": config.get("ollama_model", "gpt-oss:20b"),
+        "model": config.get("ollama_model", "llama3:latest"),
         "paths": {
             "base": str(BASE_PATH),
             "memory": str(MEMORY_PATH),
@@ -1245,7 +1245,7 @@ def ollama_status():
     config = load_config()
 
     ollama_url = config.get("ollama_url", "http://127.0.0.1:11434/api/generate")
-    ollama_model = config.get("ollama_model", "gpt-oss:20b")
+    ollama_model = config.get("ollama_model", "llama3:latest")
 
     payload = {
         "model": ollama_model,
@@ -1312,7 +1312,7 @@ def get_config():
 
     return {
         "ok": True,
-        "ollama_model": config.get("ollama_model", "gpt-oss:20b"),
+        "ollama_model": config.get("ollama_model", "llama3:latest"),
         "ollama_url": config.get("ollama_url", "http://127.0.0.1:11434/api/generate"),
         "temperature": config.get("temperature", 0.7),
         "num_ctx": config.get("num_ctx", 8192),
@@ -1350,7 +1350,7 @@ def update_config(request: ConfigUpdateRequest):
         "ok": True,
         "message": "Asetukset tallennettu.",
         "config": {
-            "ollama_model": config.get("ollama_model", "gpt-oss:20b"),
+            "ollama_model": config.get("ollama_model", "llama3:latest"),
             "ollama_url": config.get("ollama_url", "http://127.0.0.1:11434/api/generate"),
             "temperature": config.get("temperature", 0.7),
             "num_ctx": config.get("num_ctx", 8192),
@@ -1367,7 +1367,7 @@ def health():
     return {
         "ok": True,
         "status": "running",
-        "model": config.get("ollama_model", "gpt-oss:20b"),
+        "model": config.get("ollama_model", "llama3:latest"),
         "temperature": config.get("temperature", 0.7),
         "num_ctx": config.get("num_ctx", 8192),
         "time": datetime.now().isoformat(timespec="seconds"),
@@ -1435,7 +1435,7 @@ def system_status():
         "config": file_info(CONFIG_PATH),
         "backup_path": dir_info(backup_path),
         "export_path": dir_info(export_path),
-        "model": config.get("ollama_model", "gpt-oss:20b"),
+        "model": config.get("ollama_model", "llama3:latest"),
         "num_ctx": config.get("num_ctx", 8192)
     }
 

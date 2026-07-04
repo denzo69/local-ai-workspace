@@ -9,9 +9,11 @@ All notable changes to Local AI Workspace are documented here.
 - Response Planning Layer for intent routing before tool use.
 - Intent Planner for classifying date/time, assistant permissions, Self-State, general knowledge, health/lifestyle, business-support and current external information prompts.
 - Context Gate to prevent unrelated memory, Self-State or business-support leakage.
+- Answer Grounding / Knowledge Source Selection Layer for choosing between chat context, memory, project state, RAG, web search and model knowledge.
 - Response Contracts for allowed and forbidden behavior by intent.
 - Output Validator to catch obvious response mismatches before final output.
 - Regression tests for Finnish routing edge cases, web-search gating, Self-State gating and tool-use decisions.
+- Large deterministic assistant baseline eval with 10,000 question chains and 40,000 routing checks.
 
 ### Changed
 
@@ -29,8 +31,9 @@ All notable changes to Local AI Workspace are documented here.
 - Finnish language capability questions no longer trigger Self-State output.
 - Health/lifestyle prompts do not receive unrelated business or tax suggestions.
 
-- Local test status: `223 passed`.
-- Total coverage: `89%`.
+- Local test status: `257 passed`.
+- Total coverage: `88%`.
+- Large interaction baseline: `10,000` chains / `40,000` checks / `0` failures.
 
 ### Notes
 

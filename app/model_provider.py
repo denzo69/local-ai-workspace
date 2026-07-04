@@ -66,7 +66,7 @@ def provider_from_config(config: Dict[str, Any]):
         raise ModelProviderError(f"Tuntematon model_provider: {provider}")
     return OllamaProvider(
         url=config.get("ollama_url", "http://127.0.0.1:11434/api/generate"),
-        model=config.get("ollama_model", "gpt-oss:20b"),
+        model=config.get("ollama_model", "llama3:latest"),
         temperature=float(config.get("temperature", 0.7)),
         num_ctx=int(config.get("num_ctx", 8192)),
     )
@@ -77,8 +77,7 @@ def model_provider_status(config: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "ok": provider == "ollama",
         "provider": provider,
-        "model": config.get("ollama_model", "gpt-oss:20b"),
+        "model": config.get("ollama_model", "llama3:latest"),
         "url": config.get("ollama_url", "http://127.0.0.1:11434/api/generate") if provider == "ollama" else None,
         "supports_streaming": False,
     }
-

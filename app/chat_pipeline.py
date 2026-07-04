@@ -44,7 +44,7 @@ class ChatPipelineDependencies:
 
 
 def _model_name(deps: ChatPipelineDependencies) -> str:
-    return deps.load_config().get("ollama_model", "gpt-oss:20b")
+    return deps.load_config().get("ollama_model", "llama3:latest")
 
 
 def _chat_response(
