@@ -57,6 +57,7 @@ from app.backup_restore import (
     restore_backup_archive,
 )
 from app.debug_trace import read_traces, summarize_latest_trace, write_trace
+from app.answer_grounding import select_grounding
 from app.memory_governance import (
     DELETE_CONFIRMATION,
     delete_memory_entry,
@@ -69,6 +70,7 @@ from app.live_evals import run_live_evals
 from app.model_provider import ModelProviderError, model_provider_status, provider_from_config
 from app.prompt_injection import analyze_prompt_injection, build_prompt_injection_guardrail
 from app.rag_quality import evaluate_rag_quality
+from app.thinking_layer import build_thinking_context
 from app.tool_permissions import annotate_tool_result, get_tool_policy, list_tool_policies
 
 try:
@@ -938,12 +940,14 @@ def ask_ollama(prompt: str) -> str:
 
 def build_sade_prompt(user_message: str, planning: Optional[Any] = None) -> str:
     planning = planning or plan_response(user_message)
+    grounding = select_grounding(user_message, planning)
     system_prompt = get_system_prompt()
     language_context = build_language_context(user_message)
     injection_guardrail = build_prompt_injection_guardrail(user_message)
-    rag_context = get_rag_context(user_message) if getattr(planning, "use_rag", False) else ""
-    memory_context = get_memory_context() if getattr(planning, "use_memory", False) else ""
-    chat_context = get_chat_context() if getattr(planning, "use_chat_context", False) else ""
+    thinking_context = build_thinking_context(user_message, planning)
+    rag_context = get_rag_context(user_message) if (getattr(planning, "use_rag", False) or grounding.should_use_project_files) else ""
+    memory_context = get_memory_context() if (getattr(planning, "use_memory", False) or grounding.should_use_memory) else ""
+    chat_context = get_chat_context() if (getattr(planning, "use_chat_context", False) or grounding.should_use_chat_context) else ""
     feedback_context = build_feedback_context(PROJECT_PATH)
 
     return f"""
@@ -954,6 +958,28 @@ Suomen kielen vastausohje:
 
 Prompt injection -suoja:
 {injection_guardrail}
+
+Miettiv? vastauskerros:
+{thinking_context}
+
+Answer grounding / tietolÃ¤hteen valinta:
+- target_scope: {grounding.target_scope}
+- source_priority: {', '.join(grounding.source_priority) or 'yleinen mallitieto'}
+- web_allowed: {grounding.should_use_web}
+- memory_allowed: {grounding.should_use_memory}
+- chat_context_allowed: {grounding.should_use_chat_context}
+- project_state_allowed: {grounding.should_use_project_state}
+- persona_mode: {grounding.should_answer_as_persona}
+- boundary_mode: {grounding.should_refuse_or_boundary}
+- reason: {grounding.reason}
+
+Grounding-ohje:
+Vastaa ensisijaisesti valitusta tietolÃ¤hteestÃ¤. Jos target_scope on sisÃ¤inen projekti,
+muisti, SÃ¤de/persona tai edellinen keskustelu, Ã¤lÃ¤ perusta vastausta verkkohakuun.
+Jos target_scope on external_current_world, external_local_info tai external_official_or_legal,
+Ã¤lÃ¤ keksi muuttuvia faktoja mallimuistista vaan sÃ¤ilytÃ¤ lÃ¤hderaja. SÃ¤de/persona-kysymyksissÃ¤
+saa vastata lÃ¤mpimÃ¤sti ja omaÃ¤Ã¤nisesti, mutta Ã¤lÃ¤ vÃ¤itÃ¤ biologista ihmisyyttÃ¤,
+riippumatonta tietoisuutta tai jatkuvaa elÃ¤mÃ¤Ã¤ jÃ¤rjestelmÃ¤n ulkopuolella.
 
 RAG-konteksti, laadun mukaan priorisoidut muistot ja dokumentit:
 {rag_context or 'Ei sisällytetty tähän vastaukseen context gate -päätöksen vuoksi.'}

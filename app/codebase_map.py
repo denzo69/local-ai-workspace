@@ -27,10 +27,10 @@ MAX_READ_CHARS = 300_000
 def _resolve_app_path(project_path: Path) -> Path:
     """
     Dev Mode voi saada joko projektijuuren:
-        C:/Sade/Sade-v1
+        <project-root>
 
     tai suoraan app-kansion:
-        C:/Sade/Sade-v1/app
+        <project-root>/app
 
     Tämä palauttaa aina oikean app-kansion.
     """

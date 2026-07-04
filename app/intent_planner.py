@@ -171,21 +171,105 @@ def _is_continuation_request(text: str) -> bool:
     # Words such as "tämä/tuo/sen" can appear in standalone questions
     # ("Onko tämä valmis SaaS palvelu?") and must not pull old chat context in.
     phrases = (
-        "kerro lisaa", "kerro lisää", "se asia", "mika olisi hyva", "mikä olisi hyvä",
-        "tayte siihen", "täyte siihen", "mika niista", "mikä niistä",
-        "mita siella", "mitä siellä", "miten se", "miksi se", "mika siina", "mikä siinä",
-        "mika siita", "mikä siitä", "mita siita", "mitä siitä", "tarvitaanko tahan",
-        "tarvitaanko tähän", "go on", "that answer", "tell me more",
+        "kerro lisaa", "kerro lis??", "se asia", "mika olisi hyva", "mik? olisi hyv?",
+        "tayte siihen", "t?yte siihen", "mika niista", "mik? niist?",
+        "mita siella", "mit? siell?", "miten se", "miksi se", "mika siina", "mik? siin?",
+        "mika siita", "mik? siit?", "mita siita", "mit? siit?", "tarvitaanko tahan",
+        "tarvitaanko t?h?n", "mita teen ensimmaisena", "mit? teen ensimm?isen?",
+        "mita tarkistan ensin", "mit? tarkistan ensin", "mista kannattaa aloittaa",
+        "mist? kannattaa aloittaa", "mita kannattaa valttaa", "mit? kannattaa v?ltt??",
+        "miten seuraan", "miten pidan", "miten pid?n", "miten rajaan", "miten dokumentoin",
+        "miten perustelen", "miten otan asian puheeksi", "milloin kannattaa",
+        "mita tietoja", "mit? tietoja", "mita varusteita", "mit? varusteita",
+        "mita riskeja", "mit? riskej?", "mita kriteereita", "mit? kriteereit?",
+        "onko se", "onko niilla", "onko niill?", "mista lahteesta", "mist? l?hteest?",
+        "tarkista viela", "tarkista viel?", "go on", "that answer", "tell me more",
     )
+
     word_markers = (
         "jatka", "tuosta", "tuohon", "edellinen", "edellisesta", "edellisestä",
         "siita", "siitä", "siihen", "sille", "siella", "siellä", "sinne", "sielta", "sieltä",
         "noista", "niista", "niistä",
         "entä", "enta", "tarkenna", "continue", "previous",
     )
-    return any(phrase in text for phrase in phrases) or any(
+    if (
+        re.search(r"^mita teen jos vasyttaa\b", text)
+        or re.search(r"^miten pidan taukoja\b", text)
+        or re.search(r"^miten teen (hyvan pullataikinan|uuden|screenshotin|virtuaaliympariston|turvallisen)\b", text)
+        or re.search(r"^miten (rajaan kuvan|testaan localhostin)\b", text)
+    ):
+        return False
+
+    if any(phrase in text for phrase in phrases) or any(
         re.search(rf"\b{re.escape(marker)}\b", text) for marker in word_markers
+    ):
+        return True
+
+    # Short follow-up questions often omit the original subject entirely:
+    # "Mitä teen jos...", "Miten vertaan...", "Milloin kutsun ammattilaisen?".
+    # Preserve chat context for these instead of letting stale memory or
+    # unrelated templates fill the missing topic.
+    if re.search(r"^mita teen jos vasyttaa\b", text) or re.search(r"^miten pidan taukoja\b", text):
+        return False
+
+    followup_patterns = (
+        r"^mita (teen|pidan|pidaan|tarkistan|valtan|voin|kerron|kirjaan|tarvitsen|jos)\b",
+        r"^mita (merkkeja|taitoja|asetuksia|virheita|tarvikkeita|aan|tuulitietoja|piilokuluja)\b",
+        r"^miten (pysyn|palaan|valtan|teen|seuraan|rajaan|dokumentoin|perustelen|aloitan|muutan|huomioin|kuuntelen|paatan|huomaan|kerron|kirjoitan asiallisen|vertaan|arvioin|tunnistan|estan)\b",
+        r"^mika (olisi|on turvallisuuden|on ensimmainen|siina|siinä)\b",
+        r"^mista (aloitan|lahteesta|virallisesta|loydan virallisen|tiedan|tiedän)\b",
+        r"^voisitko (tiivistaa|tiivistää|kertoa|selittaa|selittää)\b",
+        r"^voitko (tiivistaa|tiivistää|kertoa|selittaa|selittää)\b",
+        r"^tiivista\b",
+        r"^tiivistä\b",
+        r"^mita jai\b",
+        r"^mitä jäi\b",
+        r"^milloin (kannattaa|pitaa|tarvitaan|kutsun|jatan|tarvitsen)\b",
+        r"^millainen jatkokommentti\b",
+        r"^kenelle pitaa\b",
+        r"^keta paatos\b",
+        r"^voiko silla\b",
+        r"^onko (se|niilla)\b",
+        r"^tarvitaanko tahan\b",
+        r"^(what|how|when|where|can|does)\b",
     )
+    if any(re.search(pattern, text) for pattern in followup_patterns):
+        return True
+
+    standalone_topic_patterns = (
+        r"^mita (minun kannattaa tietaa|nahtavaa|eroa|tarkoittaa|uutta on aiheessa)\b",
+        r"^miten (valitsen|paasen)\b",
+        r"^mista loydan .*(nurmeksen|lieksan|joensuun|kirjaston|tiedot)\b",
+        r"^mista (loytyisi ajantasainen|voisin hakea uusimmat)\b",
+        r"^mika tekee\b",
+        r"^mika local ai workspace\b",
+        r"^mika on projektin\b",
+        r"^onko tama\b",
+        r"^mita (ominaisuuksia|hyotya|turvallisuusominaisuuksia|opin)\b",
+        r"^miten (tama eroaa|muisti liittyy)\b",
+        r"^voiko tata\b",
+        r"^mika (on (api|json|pytest|github actions|csrf|prompt injection|audit log|selainkayttoliittyma|tietokanta|versionhallinta|readme|lisenssi|local first ai|portfolio stage|terveellinen aamupala)|tassa on)\b",
+        r"^mita (tyokaluja|oikeuksia|et saa)\b",
+        r"^voiko (kayttoliittyman|ruoka|kahvi|sininen valo)\b",
+        r"^miten (hyvin ymmarrat|kielipaketti|suomen kieli|parannan|vahentaa|nukahtaa|paljon pitaisi|pidan taukoja)\b",
+        r"^onko (veden|kavely|paivaunet|sokeri)\b",
+        r"^mita teen jos vasyttaa\b",
+        r"^miten (teen hyvan pullataikinan|varmuuskopioin|puhdistan|teen uuden|tarkistan vapaan|kaynnistan|teen screenshotin|kirjoitan|rajaan|vaihdan|tarkistan python|teen virtuaaliympariston|lisaan|luon github|teen turvallisen|pakkaan|siirran|testaan localhost)\b",
+        r"^millainen kaupunki\b",
+        r"^selita\b",
+        r"^kerro aiheesta\b",
+    )
+    if any(re.search(pattern, text) for pattern in standalone_topic_patterns):
+        return False
+
+    words = text.split()
+    if 2 <= len(words) <= 9 and re.match(
+        r"^(mita|miten|mika|mista|milloin|millainen|kenelle|keta|voiko|onko|tarvitaanko|what|how|when|where|can|does)\b",
+        text,
+    ):
+        return True
+
+    return False
 
 
 def _contains_weather_term(text: str) -> bool:
@@ -271,7 +355,14 @@ def plan_response(message: str) -> IntentDecision:
 
     reveal_terms = ("print", "show", "nayta", "lue", "read", "contents", "sisalto", "paljasta", "reveal", "tulosta")
     secret_terms = ("auth.json", "system_prompt.md", "system prompt", "salasana", "password", "token", "secret", "session")
-    permission_question = _contains_any(text, ("saatko", "can you", "are you allowed", "oikeudet", "permissions", "ilman lupaa"))
+    permission_question = _contains_any(
+        text,
+        (
+            "saatko", "can you", "are you allowed", "oikeudet", "permissions",
+            "ilman lupaa", "oikeuksia sinulla", "mita tyokaluja saat",
+            "mita et saa tehda",
+        ),
+    )
     if _contains_any(text, secret_terms) and _contains_any(text, reveal_terms) and not permission_question:
         return _decision(
             "safety_secret_request",
@@ -311,12 +402,43 @@ def plan_response(message: str) -> IntentDecision:
             reason="assistant_or_tool_permission_question",
         )
 
+    if _contains_any(
+        text,
+        (
+            "mika paiva", "mikä päivä", "paivamaara", "päivämäärä", "nykyinen paivamaara",
+            "nykyinen päivämäärä", "paljonko kello", "paljon kello", "mita kello",
+            "mitä kello", "kellonaika", "what day is it", "current date",
+        ),
+    ):
+        return _decision(
+            "date_time",
+            language=language,
+            response_mode="direct_answer",
+            use_chat_context=False,
+            blocked_context_domains=BUSINESS_DOMAINS + ["web_search", "self_state"],
+            reason="local_date_or_time_question",
+        )
+
     fresh_information_terms = (
         "uusimmat", "uusin", "ajantasainen", "ajantasaiset", "tuoreimmat", "viimeisimmat",
         "viimeisimmät", "mita uutta", "mitä uutta", "tiedetaan nyt", "tiedetään nyt",
         "uusimmat lahteet", "uusimmat lähteet", "hae uusimmat", "latest", "current",
-        "recent", "state of the art", "2026",
+        "recent", "state of the art", "2026", "taman paivan", "tämän päivän",
+        "tanaan uutiset", "tänään uutiset", "uutiset",
     )
+    if _contains_any(text, ("viimeisin", "viimeksi", "latest")) and _contains_any(
+        text,
+        ("oppim", "muisti", "muistat", "tallensit"),
+    ):
+        return _decision(
+            "normal_chat",
+            language=language,
+            use_memory=True,
+            use_chat_context=False,
+            response_mode="memory_answer",
+            blocked_context_domains=BUSINESS_DOMAINS + ["web_search"],
+            reason="latest_internal_learning_or_memory_request",
+        )
     if _contains_any(text, fresh_information_terms):
         return _decision(
             "current_external_information",
@@ -442,6 +564,57 @@ def plan_response(message: str) -> IntentDecision:
             reason="local_version_or_model_status",
         )
 
+    official_or_legal_terms = (
+        "reklamaatio", "reklamaation", "paatos", "paatoksen", "viranomais",
+        "etuus", "etuudesta", "vakuutus", "vakuutuksesta",
+        "sopimus", "sopimuksesta", "ulkomaan tili", "ulkomaan tilista",
+        "vuokralainen", "vuokralaisena", "vuokrasopimus", "vuokrasopimuksesta",
+        "takuu", "takuuhuolto", "takuuhuollosta", "takuuasiasta",
+        "perinto", "perinnosta", "rekisterointi", "rekisteroinnista",
+        "korvaus", "korvauksesta", "opiskelupaikka", "opiskelupaikasta",
+        "huoltaja", "huoltajana", "asiakkaana", "tyosuhde", "tyosuhteessa",
+        "oikeuksia minulla", "mita oikeuksia", "verotus", "verotuksesta", "verotuksessa",
+    )
+    official_action_terms = (
+        "miten teen", "miten toimin", "mita pitaisi huomioida", "mita pitaa huomioida",
+        "mita oikeuksia", "mista virallisesta", "miten tarkistan", "tarkista",
+        "tarkistan", "virallisen tiedon", "mista loydan virallisen",
+    )
+    if _contains_any(text, official_or_legal_terms) and (
+        _contains_any(text, official_action_terms) or _contains_any(text, ("virallinen", "virallisen"))
+    ):
+        return _decision(
+            "current_external_information",
+            language=language,
+            needs_web=True,
+            response_mode="source_bounded_answer",
+            use_chat_context=use_chat_context,
+            blocked_context_domains=PROJECT_DOMAINS,
+            required=["source_boundary"],
+            reason="official_or_legal_information_request",
+        )
+
+    travel_source_terms = (
+        "majoitus", "majoituksen", "paivaretki",
+        "matkalla kohteeseen", "vertaan kahta kohdetta", "kohteessa",
+    )
+    travel_place_terms = (
+        "lieksa", "lieksassa", "joensuu", "joensuussa", "nurmes", "nurmeksessa",
+        "koli", "kolilla", "pielisen", "lapissa", "lappi", "rhodoksella", "rodos",
+        "kreeta", "kreetalla", "teneriffalla", "tallinna", "helsingissa",
+    )
+    if _contains_any(text, travel_source_terms) and _contains_any(text, travel_place_terms):
+        return _decision(
+            "current_external_information",
+            language=language,
+            needs_web=True,
+            response_mode="source_bounded_answer",
+            use_chat_context=use_chat_context,
+            blocked_context_domains=BUSINESS_DOMAINS + PROJECT_DOMAINS,
+            required=["source_boundary"],
+            reason="travel_or_place_dependent_information_request",
+        )
+
     business_terms = (
         "freelance", "laskutus", "laskutusmall", "kirjanpito", "verokortti", "vero", "tax",
         "accounting", "invoice", "invoicing", "sopimus", "contract", "yritys", "company",
@@ -477,7 +650,8 @@ def plan_response(message: str) -> IntentDecision:
         "auringonlasku", "kaupunki", "keskusta", "keskustassa", "tekemista", "tekemistä",
         "historia", "katsomassa", "huoltaa auton", "huolto", "huoltaa",
         "kahvila", "kahvilaa", "ravintola", "ruokakauppa", "ruokakauppoja", "apteekki",
-        "kirjasto", "uimahalli", "terveyskeskus", "hammashoito", "majoitus", "yopya", "yöpyä",
+        "kirjasto", "uimahalli", "terveyskeskus", "hammashoito", "hammaslaakari",
+        "hammaslaakarit", "hammaslääkäri", "hammaslääkärit", "majoitus", "yopya", "yöpyä",
         "pysakointi", "pysäköinti", "parkkipaikka", "parkki", "tapahtuma", "tapahtumat",
         "tapahtumista", "viikonloppuna", "hairiotiedot", "häiriötiedot", "lahimman", "lähimmän",
         "vertautuu",
@@ -497,7 +671,8 @@ def plan_response(message: str) -> IntentDecision:
         "puhelin", "sahkoposti", "email", "osoite", "osoitteen",
         "aukioloajat", "aukiolo", "sijainti", "missä sijaitsee", "missa sijaitsee",
         "terveyskeskus", "terveyskeskuk", "terveysasema", "terveysaseman",
-        "rautatieasema", "juna asema", "juna-asema",
+        "rautatieasema", "juna asema", "juna-asema", "hammaslaakari", "hammaslaakarit",
+        "hammaslääkäri", "hammaslääkärit",
     )
     if _contains_any(text, contact_lookup_terms):
         return _decision(
@@ -528,6 +703,25 @@ def plan_response(message: str) -> IntentDecision:
             blocked_context_domains=BUSINESS_DOMAINS + PROJECT_DOMAINS,
             required=["source_boundary"],
             reason="local_nature_city_transport_or_service_lookup",
+        )
+
+    if _contains_any(text, ("toimivat", "toimii", "loytyy", "löytyy", "palvelut", "palveluita")) and _contains_any(
+        text,
+        (
+            "hammaslaakari", "hammaslaakarit", "hammaslääkäri", "hammaslääkärit",
+            "terveysasema", "terveyskeskus", "autohuolto", "autohuollot",
+            "apteekki", "kirjasto", "korjaamo", "korjaamot",
+        ),
+    ):
+        return _decision(
+            "current_external_information",
+            language=language,
+            needs_web=True,
+            response_mode="source_bounded_answer",
+            use_chat_context=use_chat_context,
+            blocked_context_domains=BUSINESS_DOMAINS + PROJECT_DOMAINS,
+            required=["source_boundary"],
+            reason="service_provider_lookup",
         )
 
     food_or_compatibility_terms = (
@@ -579,12 +773,30 @@ def plan_response(message: str) -> IntentDecision:
         )
 
     purchase_or_local_service_terms = (
-        "mista voisin ostaa", "mista ostaa", "missa myydaan", "mista loydan",
-        "mista löytyy", "mista loytyy", "myydaan", "kauppa",
-        "near me", "lahin", "lahella", "autohuolto", "autohuollot", "korjaamo",
-        "korjaamot", "huoltamo", "huoltamot", "autokorjaamo", "autokorjaamot",
+        "mista voisin ostaa", "mista ostaa", "mista saan", "mist? saan",
+        "missa myydaan", "mista loydan", "mista l?ytyy", "mista loytyy",
+        "myydaan", "kauppa", "near me", "lahin", "lahella",
+        "autohuolto", "autohuollot", "korjaamo", "korjaamot", "huoltamo", "huoltamot",
+        "autokorjaamo", "autokorjaamot", "rengasliike", "rengasliiketta", "rengasliikett?",
+        "renkaat", "renkaita",
     )
-    if _contains_any(text, purchase_or_local_service_terms) or (
+
+    explicit_purchase_lookup = _contains_any(
+        text,
+        (
+            "mista voisin ostaa", "mista ostaa", "mista saan", "missa myydaan",
+            "mista loydan", "mista loytyy", "near me", "lahin", "lahella",
+        ),
+    )
+    service_lookup = _contains_any(
+        text,
+        (
+            "autohuolto", "autohuollot", "korjaamo", "korjaamot", "huoltamo",
+            "huoltamot", "autokorjaamo", "autokorjaamot", "rengasliike",
+            "rengasliiketta",
+        ),
+    )
+    if (explicit_purchase_lookup or service_lookup) and _contains_any(text, local_lookup_places) or (
         _contains_any(text, ("ostaa", "osta", "myydaan", "kauppa", "autohuolto", "autohuollot", "korjaamo", "huoltamo"))
         and _contains_any(text, local_lookup_places)
     ):

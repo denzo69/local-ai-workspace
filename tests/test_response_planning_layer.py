@@ -184,7 +184,7 @@ def test_planner_handles_technical_science_space_electricity_and_ai_contexts() -
             ("Mitä tarkoittaa vikavirtasuoja?", False, False),
             ("Miten se vaikuttaa arjessa?", False, True),
             ("Entä mitä riskejä siihen liittyy?", False, True),
-            ("Milloin tarvitaan sähköalan ammattilainen?", False, False),
+            ("Milloin tarvitaan sähköalan ammattilainen?", False, True),
         ],
         "science_general": [
             ("Selitä lyhyesti DNA.", False, False),
@@ -309,8 +309,9 @@ def test_output_validator_blocks_leakage_by_intent() -> None:
     assert validate_output({"intent": "business_support", "language": "en", "allow_business_suggestions": True}, "A freelance invoicing model can help.")["ok"] is True
     assert validate_output(health, "Kahvi voi vaikuttaa uneen, jos sitä juo myöhään.")["ok"] is True
     practical_fallback = validate_output(practical, "DTA ja verokortti kannattaa tarkistaa.")
-    assert practical_fallback["ok"] is False
-    assert "käytännöllisen" in practical_fallback["reply"]
+    assert practical_fallback["ok"] is True
+    assert practical_fallback["action"] == "accept_with_warnings"
+    assert "unexpected_business_suggestion" in practical_fallback["issues"]
 
 
 def test_tool_router_uses_planner_to_block_unnecessary_web_and_self_state(tmp_path: Path) -> None:
@@ -353,3 +354,57 @@ def test_planner_routes_contact_lookup_to_web_before_health_advice() -> None:
 
     assert sleep.intent == "health_lifestyle_general"
     assert sleep.needs_web is False
+
+
+def test_planner_preserves_focus_for_short_followup_questions() -> None:
+    followups = [
+        "Mika olisi lahimpana keskustaa?",
+        "Mita teen ensimmaisena?",
+        "Mita pidaan mukana?",
+        "Miten vertaan vaihtoehtoja?",
+        "Milloin kannattaa pyytaa asiantuntija-apua?",
+        "Keta paatos koskee?",
+        "Millainen jatkokommentti olisi luonteva?",
+    ]
+
+    for message in followups:
+        decision = plan_response(message)
+        assert decision.use_chat_context is True, (message, decision)
+        assert decision.use_self_state is False, (message, decision)
+        assert decision.allow_business_suggestions is False, (message, decision)
+
+
+def test_planner_routes_local_services_and_followups_to_source_bounded_search() -> None:
+    initial_cases = [
+        "Autohuollot Lieksassa",
+        "Mista saan renkaat autoon Lieksassa?",
+        "Nurmeksen terveyskeskuksen yhteystiedot",
+        "Voitko kertoa Lieksan juna aseman osoitteen?",
+    ]
+
+    for message in initial_cases:
+        decision = plan_response(message)
+        assert decision.intent == "current_external_information", (message, decision)
+        assert decision.needs_web is True, (message, decision)
+        assert "source_boundary" in decision.required
+
+    followup = plan_response("Enta Nurmeksessa?")
+    assert followup.use_chat_context is True
+
+
+def test_planner_routes_official_legal_and_travel_information_to_web() -> None:
+    cases = [
+        "Miten teen reklamaation asiasta myohastyneesta huollosta",
+        "Mita pitaisi huomioida tilanteessa verotuksesta",
+        "Mita pitaisi huomioida tilanteessa sopimuksesta",
+        "Mita pitaisi huomioida tilanteessa ulkomaan tilista",
+        "Mika olisi hyva paivaretki paikassa Lieksassa",
+        "Miten valitsen majoituksen kohteessa Joensuussa",
+        "Miten vertaan kahta kohdetta Rhodoksella ja Kreeta",
+    ]
+
+    for message in cases:
+        decision = plan_response(message)
+        assert decision.intent == "current_external_information", (message, decision)
+        assert decision.needs_web is True, (message, decision)
+        assert decision.response_mode == "source_bounded_answer", (message, decision)

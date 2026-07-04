@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -175,11 +176,16 @@ def check_text_patterns(path: Path, warnings: list[str], errors: list[str]) -> N
         return
 
     for name, pattern in DANGER_PATTERNS.items():
-        if pattern in text:
-            if name.startswith("merge_conflict"):
+        if name.startswith("merge_conflict"):
+            if re.search(rf"(?m)^{re.escape(pattern)}(?:\s|$)", text):
                 errors.append(f"{relative}: contains merge conflict marker: {pattern}")
-            else:
-                warnings.append(f"{relative}: contains suspicious pattern `{pattern}`")
+            continue
+
+        if relative == Path("scripts/repo_integrity_audit.py"):
+            continue
+
+        if pattern in text:
+            warnings.append(f"{relative}: contains suspicious pattern `{pattern}`")
 
     if path.suffix == ".py" and len(text) > 120_000:
         warnings.append(f"{relative}: Python file is very large ({len(text)} chars)")

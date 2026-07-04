@@ -89,12 +89,15 @@ def summarize_latest_trace(project_root: Path, limit: int = 40) -> Dict[str, Any
     sources_read = 0
     validator_result = ""
     conversation_context: Dict[str, Any] = {}
+    grounding: Dict[str, Any] = {}
 
     for item in items:
         details = item.get("details") or {}
         route_used = str(details.get("route_used") or route_used)
         if item.get("event") == "chat_intent_planned":
             intent = str(details.get("intent") or item.get("decision") or intent)
+        if item.get("event") == "chat_grounding_selected":
+            grounding = dict(details or {})
         if item.get("event") == "conversation_context_used":
             conversation_context = dict(details.get("conversation_context") or {})
             search_query = str(details.get("search_query") or search_query)
@@ -123,5 +126,11 @@ def summarize_latest_trace(project_root: Path, limit: int = 40) -> Dict[str, Any
         "sources_read": sources_read,
         "validator_result": validator_result or "not_recorded",
         "conversation_context": conversation_context,
+        "grounding": grounding,
+        "target_scope": grounding.get("target_scope") or "unknown",
+        "selected_sources": grounding.get("selected_sources") or [],
+        "rejected_sources": grounding.get("rejected_sources") or [],
+        "grounding_confidence": grounding.get("grounding_confidence") or 0,
+        "grounding_reason": grounding.get("grounding_reason") or "",
         "note": "Operational trace only; no hidden reasoning is exposed.",
     }

@@ -12,10 +12,10 @@ Tarkoitus:
   autobiographical_memory.md-tiedostoja, jos ne löytyvät.
 
 Suositeltu sijainti:
-    C:\\Sade\\Sade-v1\\app\\persona_layer.py
+    <project-root>\\app\\persona_layer.py
 
 Testaus:
-    cd C:\\Sade\\Sade-v1
+    cd <project-root>
     python app\\persona_layer.py --status
 """
 
@@ -32,7 +32,7 @@ def resolve_project_root(project_root: Optional[Path] = None) -> Path:
     Palauttaa projektijuuren.
 
     Jos tiedosto sijaitsee app/persona_layer.py:
-        Path(__file__).resolve().parent.parent -> C:\\Sade\\Sade-v1
+        Path(__file__).resolve().parent.parent -> <project-root>
 
     Jos funktiolle annetaan app-kansio, palautetaan sen parent.
     """

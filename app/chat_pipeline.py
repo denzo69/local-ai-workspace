@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, Optional
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
+from app.answer_grounding import select_grounding, should_allow_web
 from app.conversation_context import build_contextual_query, extract_conversation_context
 from app.debug_trace import write_trace
 from app.intent_planner import build_direct_response, plan_response
@@ -15,6 +16,7 @@ from app.language_pack import build_language_context
 from app.manual_behavior import try_handle_manual_behavior
 from app.output_validator import validate_output
 from app.prompt_injection import analyze_prompt_injection
+from app.thinking_layer import build_thinking_context
 
 
 @dataclass(frozen=True)
@@ -63,8 +65,14 @@ def _chat_response(
     return response
 
 
-def _validate_planned_reply(planning: Any, reply: str) -> str:
-    validation = validate_output(planning, reply)
+def _validate_planned_reply(planning: Any, reply: str, grounding: Any = None) -> str:
+    decision = planning
+    if grounding is not None:
+        try:
+            decision = {**planning.to_dict(), "grounding": grounding.to_dict()}
+        except Exception:
+            decision = {"intent": getattr(planning, "intent", ""), "grounding": getattr(grounding, "to_dict", lambda: {})()}
+    validation = validate_output(decision, reply)
     return str(validation.get("reply") or reply or "").strip()
 
 
@@ -182,11 +190,15 @@ def _contextual_search_message(message: str, planning: Any, deps: ChatPipelineDe
 def _build_web_grounded_prompt(message: str, planning: Any, search_result: Dict[str, Any]) -> str:
     source_context = _format_web_sources(search_result)
     language_context = build_language_context(message)
+    thinking_context = build_thinking_context(message, planning)
     return f"""
 Olet Local AI Workspace -avustaja.
 
 Suomen kielen vastausohje:
 {language_context}
+
+Miettivä vastauskerros:
+{thinking_context}
 
 Käyttäjän kysymys:
 {message}
@@ -357,6 +369,7 @@ def handle_chat_message(message: str, deps: ChatPipelineDependencies) -> Dict[st
         pass
 
     planning = plan_response(message)
+    grounding = select_grounding(message, planning)
     try:
         write_trace(
             deps.project_path,
@@ -365,6 +378,17 @@ def handle_chat_message(message: str, deps: ChatPipelineDependencies) -> Dict[st
             route="intent_planner",
             decision=planning.intent,
             details=planning.to_dict(),
+        )
+    except Exception:
+        pass
+    try:
+        write_trace(
+            deps.project_path,
+            event="chat_grounding_selected",
+            user_message=message,
+            route="answer_grounding",
+            decision=grounding.target_scope,
+            details=grounding.route_summary(),
         )
     except Exception:
         pass
@@ -381,7 +405,7 @@ def handle_chat_message(message: str, deps: ChatPipelineDependencies) -> Dict[st
     if manual_behavior.get("handled"):
         if manual_behavior.get("category") == "local_external_information":
             web_answer = _answer_from_web_search(message, planning, deps, reason="manual_local_external_information")
-            reply = _validate_planned_reply(planning, str(web_answer.get("reply") or "").strip())
+            reply = _validate_planned_reply(planning, str(web_answer.get("reply") or "").strip(), grounding)
             tool_result = web_answer.get("tool_result") or {}
             tool_name = str(tool_result.get("tool", "web_search"))
             _trace(
@@ -415,7 +439,7 @@ def handle_chat_message(message: str, deps: ChatPipelineDependencies) -> Dict[st
             deps.append_chat_log(message, reply)
             return _chat_response(deps, reply, actions=tool_result.get("actions") or None)
 
-        reply = _validate_planned_reply(planning, str(manual_behavior.get("reply") or "").strip())
+        reply = _validate_planned_reply(planning, str(manual_behavior.get("reply") or "").strip(), grounding)
         _trace(
             deps,
             event="manual_behavior_handled",
@@ -442,7 +466,7 @@ def handle_chat_message(message: str, deps: ChatPipelineDependencies) -> Dict[st
 
     direct_reply = build_direct_response(planning, message)
     if direct_reply:
-        reply = _validate_planned_reply(planning, direct_reply)
+        reply = _validate_planned_reply(planning, direct_reply, grounding)
         deps.append_chat_log(message, reply)
         return _chat_response(deps, reply)
 
@@ -510,7 +534,8 @@ def handle_chat_message(message: str, deps: ChatPipelineDependencies) -> Dict[st
             current_info = web_search_module.is_current_info_request(message)
             automatic_web = web_search_module.is_automatic_web_search_request(message)
             web_allowed = "web_search" not in getattr(planning, "blocked_context_domains", [])
-            should_search = bool(web_allowed and (planning.needs_web or automatic_web))
+            grounding_allows_web = should_allow_web(grounding, explicit_web_requested=automatic_web)
+            should_search = bool(web_allowed and grounding_allows_web and (planning.needs_web or automatic_web))
 
             _trace(
                 deps,
@@ -523,6 +548,8 @@ def handle_chat_message(message: str, deps: ChatPipelineDependencies) -> Dict[st
                     "is_current_info_request": current_info,
                     "is_automatic_web_search_request": automatic_web,
                     "web_allowed": web_allowed,
+                    "grounding": grounding.route_summary(),
+                    "grounding_allows_web": grounding_allows_web,
                 },
             )
 
@@ -561,7 +588,7 @@ def handle_chat_message(message: str, deps: ChatPipelineDependencies) -> Dict[st
                 "The request was routed to a tool, but the tool returned no visible reply. "
                 "Check the tool result and server logs."
             )
-        reply = _validate_planned_reply(planning, reply)
+        reply = _validate_planned_reply(planning, reply, grounding)
 
         tool_name = str(tool_result.get("tool", "tool_router"))
         tool_policy = deps.get_tool_policy(tool_name)
@@ -605,7 +632,7 @@ def handle_chat_message(message: str, deps: ChatPipelineDependencies) -> Dict[st
         route="model_provider",
         decision="fallback_to_llm",
         route_used="llm_fallback",
-        details={"intent": getattr(planning, "intent", None)},
+        details={"intent": getattr(planning, "intent", None), "grounding": grounding.route_summary()},
     )
     try:
         reply = deps.ask_ollama(prompt)
@@ -613,7 +640,7 @@ def handle_chat_message(message: str, deps: ChatPipelineDependencies) -> Dict[st
         if error.status_code == 502 and planning.needs_web:
             try:
                 tool_result = deps.build_web_search_chat_result(message, reason="model_provider_fallback")
-                reply = _validate_planned_reply(planning, str(tool_result.get("reply") or "").strip())
+                reply = _validate_planned_reply(planning, str(tool_result.get("reply") or "").strip(), grounding)
                 if reply:
                     deps.append_chat_log(message, reply)
                     return _chat_response(deps, reply, actions=tool_result.get("actions") or None)
@@ -632,7 +659,7 @@ def handle_chat_message(message: str, deps: ChatPipelineDependencies) -> Dict[st
     except Exception:
         pass
 
-    reply = _validate_planned_reply(planning, reply)
+    reply = _validate_planned_reply(planning, reply, grounding)
     deps.append_chat_log(message, reply)
 
     return _chat_response(deps, reply)
