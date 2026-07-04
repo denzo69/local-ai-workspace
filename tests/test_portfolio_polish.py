@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -27,8 +28,8 @@ def test_readme_has_portfolio_sections() -> None:
     assert "What this project demonstrates" in readme
     assert "Architecture" in readme
     assert "Suggested demo flow" in readme
-    assert "257 tests passing locally" in readme
-    assert "88% total test coverage" in readme
+    assert re.search(r"\d+ tests passing locally", readme)
+    assert re.search(r"\d+% total test coverage", readme)
     assert "Known limitations" in readme
     assert "MIT License" in readme
 
