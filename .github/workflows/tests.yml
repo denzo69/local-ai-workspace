@@ -11,6 +11,7 @@ jobs:
   pytest:
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
 
@@ -31,9 +32,11 @@ jobs:
           python -m pip install pytest-cov
 
       - name: Run tests with coverage
+        shell: pwsh
         run: |
           mkdir reports
-          python -m pytest -q --cov=app --cov-branch --cov-report=term-missing --cov-report=xml:reports/coverage.xml --cov-report=html:reports/htmlcov
+          python -m pytest -q --tb=short --cov=app --cov-branch --cov-report=term-missing --cov-report=xml:reports/coverage.xml --cov-report=html:reports/htmlcov 2>&1 | Tee-Object -FilePath reports/pytest-output.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload coverage reports
         if: ${{ always() }}
@@ -43,3 +46,4 @@ jobs:
           path: |
             reports/coverage.xml
             reports/htmlcov/
+            reports/pytest-output.txt
