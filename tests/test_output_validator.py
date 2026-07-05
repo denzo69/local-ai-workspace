@@ -46,6 +46,19 @@ def test_output_validator_reports_persona_and_safety_warnings() -> None:
     assert "safety_overtriggered" in result["issues"]
 
 
+def test_output_validator_blocks_visible_debug_metadata() -> None:
+    result = validator.validate_output(
+        {"intent": "translation_followup", "language": "fi"},
+        "Tietolähde: timeless_general_knowledge\nRAG-konteksti: ei sisällytetty context gate -päätöksen vuoksi.",
+    )
+
+    assert result["ok"] is False
+    assert result["action"] == "fallback"
+    assert "debug_leak" in result["issues"]
+    assert "Tietolähde" not in result["reply"]
+    assert "RAG-konteksti" not in result["reply"]
+
+
 def test_output_validator_hard_fallbacks_for_contract_violations() -> None:
     date_result = validator.validate_output(
         {"intent": "date_time", "language": "en"},
