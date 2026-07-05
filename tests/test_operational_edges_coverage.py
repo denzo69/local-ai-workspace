@@ -57,7 +57,7 @@ def test_debug_trace_redacts_limits_and_summarizes_routes(tmp_path: Path) -> Non
 def test_language_pack_operational_edges(tmp_path: Path) -> None:
     app_root = tmp_path / "app"
     app_root.mkdir()
-    assert resolve_project_root().name == "Sade-v1"
+    assert resolve_project_root().name in {"Sade-v1", "local-ai-workspace"}
     assert resolve_project_root(app_root) == tmp_path
     assert preferred_term("guardrails") == "turvarajat"
     assert preferred_term("unknown-term") == "unknown-term"

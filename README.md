@@ -117,9 +117,9 @@ Run the test suite:
 
 Current local status:
 
-- 296 tests passing locally.
-- 90% total test coverage with branch coverage enabled.
-- GitHub Actions: passing.
+- 342 tests passing locally.
+- 92% total test coverage with branch coverage enabled.
+- GitHub Actions: pending for this milestone until pushed.
 - Large deterministic interaction baseline: 10,000 question chains / 40,000 routing checks / 0 failures.
 - Bilingual behavior eval: 21 cases / 0 failures.
 - Focus behavior eval: 1,000 cases / 4,000 checks / 0 failures.

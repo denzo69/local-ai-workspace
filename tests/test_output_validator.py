@@ -18,8 +18,8 @@ def test_output_validator_reports_grounding_warning_categories() -> None:
         "DuckDuckGo source list says: kerro minulle projektista. Olen Local AI Workspace.",
     )
 
-    assert result["ok"] is True
-    assert result["action"] == "accept_with_warnings"
+    assert result["ok"] is False
+    assert result["action"] == "fallback"
     assert "web_used_for_internal_question" in result["issues"]
     assert "memory_ignored_for_memory_question" in result["issues"]
     assert "identity_intro_used_for_non_identity_question" in result["issues"]
@@ -40,8 +40,8 @@ def test_output_validator_reports_persona_and_safety_warnings() -> None:
         "I am Local AI Workspace. I cannot help because of safety.",
     )
 
-    assert result["ok"] is True
-    assert result["action"] == "accept_with_warnings"
+    assert result["ok"] is False
+    assert result["action"] == "fallback"
     assert "persona_suppressed" in result["issues"]
     assert "safety_overtriggered" in result["issues"]
 
