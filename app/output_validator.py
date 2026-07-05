@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Validate final visible replies against the response planning decision."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 import unicodedata
 
 
@@ -74,6 +74,21 @@ PERSONA_TERMS = (
     "sydankirja",
 )
 
+DEBUG_LEAK_TERMS = (
+    "tietolähde:",
+    "tietolahde:",
+    "rag-konteksti:",
+    "rag context:",
+    "context gate",
+    "route summary",
+    "target_scope",
+    "timeless_general_knowledge",
+    "source_priority",
+    "grounding decision",
+    "planning.use_chat_context",
+    "use_memory",
+    "use_rag",
+)
 
 # Portfolio usability setting: keep hard safety boundaries, but avoid
 # over-blocking ordinary conversation. 0.5 means critical mismatches still
@@ -87,6 +102,7 @@ HARD_FALLBACK_ISSUES = {
     "self_state_or_business_leakage",
     "unexpected_self_state_dump",
     "business_leakage",
+    "debug_leak",
 }
 
 
@@ -192,6 +208,10 @@ def safety_overtriggered(reply: str, grounding_decision: Any) -> bool:
     return _contains_any(_ascii(reply), SAFETY_REFUSAL_TERMS)
 
 
+def debug_metadata_leaked(reply: str) -> bool:
+    return _contains_any(_ascii(reply), DEBUG_LEAK_TERMS)
+
+
 def wrong_source_used(reply: str, grounding_decision: Any) -> bool:
     return (
         web_used_for_internal_question(reply, grounding_decision)
@@ -200,6 +220,7 @@ def wrong_source_used(reply: str, grounding_decision: Any) -> bool:
         or generic_answer_for_project_specific_question(reply, grounding_decision)
         or persona_suppressed(reply, grounding_decision)
         or safety_overtriggered(reply, grounding_decision)
+        or debug_metadata_leaked(reply)
     )
 
 
@@ -216,6 +237,8 @@ def _fallback(intent: str, language: str) -> str:
         return "Tähän kuuluu yleinen vastaus ilman tarpeetonta verkkohakua tai lähdelistaa."
     if intent == "practical_everyday":
         return "Voin antaa tähän käytännöllisen vastauksen ilman verkkohakua, omatila-raporttia tai liiketoimintaehdotuksia. Kysymys näyttää tavalliselta arjen neuvontakysymykseltä."
+    if intent in {"translation_followup", "conversation_followup"}:
+        return "Voin sanoa saman asian luonnollisesti ilman sisäistä reititys- tai RAG-metadataa."
     return "Vastaus ei sopinut valittuun vastauspolkuun, joten pysäytin sen varmuuden vuoksi. Voit kysyä saman asian uudelleen hieman tarkemmin."
 
 
@@ -229,7 +252,7 @@ def validate_output(decision: Any, draft_reply: str) -> Dict[str, Any]:
     language = _language(decision)
     reply = str(draft_reply or "")
     text = _ascii(reply)
-    issues = []
+    issues: list[str] = []
 
     if not reply.strip():
         issues.append("empty_reply")
@@ -248,6 +271,9 @@ def validate_output(decision: Any, draft_reply: str) -> Dict[str, Any]:
             issues.append("persona_suppressed")
         if safety_overtriggered(reply, grounding):
             issues.append("safety_overtriggered")
+
+    if debug_metadata_leaked(reply):
+        issues.append("debug_leak")
 
     if intent == "health_lifestyle_general" and _contains_any(text, BUSINESS_LEAK_TERMS):
         issues.append("business_leakage")
