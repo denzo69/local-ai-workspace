@@ -103,6 +103,9 @@ HARD_FALLBACK_ISSUES = {
     "unexpected_self_state_dump",
     "business_leakage",
     "debug_leak",
+    "identity_intro_used_for_non_identity_question",
+    "persona_suppressed",
+    "prompt_leakage",
 }
 
 
@@ -274,6 +277,7 @@ def validate_output(decision: Any, draft_reply: str) -> Dict[str, Any]:
 
     if debug_metadata_leaked(reply):
         issues.append("debug_leak")
+        issues.append("prompt_leakage")
 
     if intent == "health_lifestyle_general" and _contains_any(text, BUSINESS_LEAK_TERMS):
         issues.append("business_leakage")

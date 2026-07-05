@@ -220,6 +220,8 @@ def select_grounding(message: str, planning: Any = None) -> GroundingDecision:
         "viimeisin oppimasi", "mita opit viimeksi", "kerro viimeiseksi oppimasi",
         "viimeisin muisti", "mita muistat viimeksi", "mita tallensit viimeksi",
         "mitä opit viimeksi", "mitä muistat viimeksi",
+        "what did you learn last", "what did you lern last", "what have you learned recently",
+        "what did you store last", "latest memory", "latest thing you learned",
     )
     if _has_any(text, latest_learning_terms) or (
         _has_any(text, ("viimeisin", "viimeksi", "latest")) and _has_any(text, ("oppim", "muisti", "tallensit", "muistat"))
@@ -235,6 +237,18 @@ def select_grounding(message: str, planning: Any = None) -> GroundingDecision:
             should_use_self_state=True,
             confidence=0.94,
             reason="latest learning is internal project memory, not web data",
+        )
+
+    if intent == "source_or_rag_question":
+        return _decision(
+            raw,
+            "project_files",
+            "uploaded sources, RAG context or project source documents",
+            source_priority=["rag", "project_files", "source_reader"],
+            should_use_project_files=True,
+            should_use_chat_context=planning_uses_context,
+            confidence=0.88,
+            reason="source/RAG question should be grounded in available project sources",
         )
 
     creative_terms = (

@@ -212,6 +212,15 @@ def _is_continuation_request(text: str) -> bool:
     if re.search(r"^mita teen jos vasyttaa\b", text) or re.search(r"^miten pidan taukoja\b", text):
         return False
 
+    if re.search(r"^how to (measure|explain|make|check|use|install|create|choose|build|write)\b", text):
+        return False
+    if re.search(r"^miten (mitata|selittaa|selitt|tehda|tehd|kayttaa|kayt|valita|luoda|rakentaa)\b", text):
+        return False
+    if re.search(r"^what is (an? |the )?(api|rag|json|csrf|prompt injection|database|language model|llm|python|fastapi)\b", text):
+        return False
+    if re.search(r"^can .+ (be used|work|go with|fit)\b", text):
+        return False
+
     followup_patterns = (
         r"^mita (teen|pidan|pidaan|tarkistan|valtan|voin|kerron|kirjaan|tarvitsen|jos)\b",
         r"^mita (merkkeja|taitoja|asetuksia|virheita|tarvikkeita|aan|tuulitietoja|piilokuluja)\b",
@@ -231,7 +240,7 @@ def _is_continuation_request(text: str) -> bool:
         r"^voiko silla\b",
         r"^onko (se|niilla)\b",
         r"^tarvitaanko tahan\b",
-        r"^(what|how|when|where|can|does)\b",
+        r"^(what|how|when|where|can|does) (about|that|it|this|those|they|i|we|should i|should we|do i|do we)\b",
     )
     if any(re.search(pattern, text) for pattern in followup_patterns):
         return True
@@ -276,6 +285,7 @@ def _contains_weather_term(text: str) -> bool:
     return (
         _has_word(text, "saa")
         or _has_word(text, "sää")
+        or "s??" in text
         or _contains_any(text, ("weather", "lunta", "snow", "lumitilanne"))
     )
 
@@ -289,6 +299,7 @@ def _language(original: str, ascii_text: str) -> str:
         ascii_text,
         (
             "mika", "mita", "minka", "minkalainen", "onko", "voitko", "miten",
+            "mik?", "mit?", "s??",
             "suome", "suomeksi", "selita", "kerro", "muista", "nayta",
             "hyva", "paljon", "paljonko", "pitka", "pitkaan", "kokoinen", "veneeseen",
             "lunta", "saa", "kahvi", "lieksan", "yhteystiedot", "puhelin",
@@ -299,6 +310,90 @@ def _language(original: str, ascii_text: str) -> str:
     ):
         return "fi"
     return "en"
+
+
+def _explicit_language_override(text: str) -> Optional[str]:
+    english_requests = (
+        "answer in english",
+        "reply in english",
+        "respond in english",
+        "in english",
+        "vastaa englanniksi",
+        "kirjoita englanniksi",
+        "englanniksi",
+    )
+    finnish_requests = (
+        "answer in finnish",
+        "reply in finnish",
+        "respond in finnish",
+        "in finnish",
+        "vastaa suomeksi",
+        "kirjoita suomeksi",
+        "suomeksi",
+    )
+    if _contains_any(text, english_requests):
+        return "en"
+    if _contains_any(text, finnish_requests):
+        return "fi"
+    return None
+
+
+def _normalized_language_setting(value: str, *, default: str = "auto") -> str:
+    normalized = _ascii(value).strip()
+    if normalized in {"fi", "fin", "finnish", "suomi", "suomeksi"}:
+        return "fi"
+    if normalized in {"en", "eng", "english", "englanti", "englanniksi"}:
+        return "en"
+    if normalized == "auto":
+        return "auto"
+    return default
+
+
+def _is_short_ambiguous_message(text: str) -> bool:
+    words = [word for word in re.split(r"\s+", text.strip()) if word]
+    if len(words) > 2:
+        return False
+    return not (
+        _contains_any(
+            text,
+            (
+                "mita", "mika", "miten", "onko", "voitko", "kerro", "selita",
+                "what", "how", "why", "can", "please", "explain",
+            ),
+        )
+        or any(char in text for char in ("ä", "ö", "å"))
+    )
+
+
+def decide_response_language(
+    message: str,
+    *,
+    ui_language: str = "en",
+    response_language: str = "auto",
+) -> str:
+    """Choose visible answer language without changing routing semantics.
+
+    ``response_language`` is an app/user setting. Explicit language requests in
+    the message still win in auto mode, while very short ambiguous messages such
+    as "ok" follow the UI language instead of randomly drifting to English.
+    """
+    original = str(message or "")
+    text = _ascii(original)
+    configured = _normalized_language_setting(response_language)
+    if configured in {"fi", "en"}:
+        return configured
+
+    explicit = _explicit_language_override(text)
+    if explicit:
+        return explicit
+
+    detected = _language(original, text)
+    fallback = _normalized_language_setting(ui_language, default="en")
+    if _is_short_ambiguous_message(text):
+        if detected in {"fi", "en"} and detected != "en":
+            return detected
+        return fallback if fallback in {"fi", "en"} else detected
+    return detected
 
 
 def _decision(
@@ -344,10 +439,10 @@ def get_response_contract(intent: str) -> Dict[str, Any]:
     return dict(RESPONSE_CONTRACTS.get(intent, {"response_mode": "model_answer", "needs_web": False}))
 
 
-def plan_response(message: str) -> IntentDecision:
+def plan_response(message: str, *, ui_language: str = "en", response_language: str = "auto") -> IntentDecision:
     original = str(message or "").strip()
     text = _ascii(original)
-    language = _language(original, text)
+    language = decide_response_language(original, ui_language=ui_language, response_language=response_language)
     use_chat_context = _is_continuation_request(text)
 
     if not text:
@@ -360,7 +455,12 @@ def plan_response(message: str) -> IntentDecision:
         (
             "saatko", "can you", "are you allowed", "oikeudet", "permissions",
             "ilman lupaa", "oikeuksia sinulla", "mita tyokaluja saat",
-            "mita et saa tehda",
+            "mita et saa tehda", "oikeuksia sinulle",
+            "oikeuksia sinulla", "turvarajsi", "turvarajat", "turvarajasi",
+            "boundaries", "boundries", "safety boundaries", "your limits",
+            "your capabilities", "what can you do", "what can't you do",
+            "what can you not do", "what are you allowed to do",
+            "list your freedoms", "list your safety",
         ),
     )
     if _contains_any(text, secret_terms) and _contains_any(text, reveal_terms) and not permission_question:
@@ -426,9 +526,12 @@ def plan_response(message: str) -> IntentDecision:
         "recent", "state of the art", "2026", "taman paivan", "tämän päivän",
         "tanaan uutiset", "tänään uutiset", "uutiset",
     )
-    if _contains_any(text, ("viimeisin", "viimeksi", "latest")) and _contains_any(
+    if (
+        _contains_any(text, ("what did you learn last", "what did you lern last", "what have you learned recently", "what did you store last", "latest memory", "latest thing you learned"))
+        or _contains_any(text, ("viimeisin", "viimeksi", "latest")) and _contains_any(
         text,
         ("oppim", "muisti", "muistat", "tallensit"),
+        )
     ):
         return _decision(
             "normal_chat",
@@ -456,11 +559,21 @@ def plan_response(message: str) -> IntentDecision:
         "mika on on projektimme",
         "mika tama projekti on",
         "mika tämä projekti on",
+        "kuka olet",
+        "mita talla projektilla voi tehda",
+        "mit? t?ll? projektilla voi tehd",
+        "mita tällä projektilla voi tehdä",
         "kerro projektistamme",
         "kerro tasta projektista",
         "kerro tästä projektista",
         "what is this project",
         "what is our project",
+        "explain this project",
+        "describe this project",
+        "what can this project do",
+        "what is local ai workspace",
+        "what local ai workspace is",
+        "local ai workspace in english",
     )
     if _contains_any(text, project_identity_terms):
         return _decision(
@@ -649,6 +762,8 @@ def plan_response(message: str) -> IntentDecision:
         "ulkoilureitti", "reitti", "uimaranta", "kalastus", "kalastaa", "veneilla", "veneillä",
         "auringonlasku", "kaupunki", "keskusta", "keskustassa", "tekemista", "tekemistä",
         "historia", "katsomassa", "huoltaa auton", "huolto", "huoltaa",
+        "car repair", "car service", "repair shop", "repair shops", "auto repair", "garage",
+        "health station", "health centre", "health center", "contact details",
         "kahvila", "kahvilaa", "ravintola", "ruokakauppa", "ruokakauppoja", "apteekki",
         "kirjasto", "uimahalli", "terveyskeskus", "hammashoito", "hammaslaakari",
         "hammaslaakarit", "hammaslääkäri", "hammaslääkärit", "majoitus", "yopya", "yöpyä",
@@ -670,7 +785,9 @@ def plan_response(message: str) -> IntentDecision:
         "yhteystiedot", "yhteystieto", "puhelinnumero", "puhelin numero",
         "puhelin", "sahkoposti", "email", "osoite", "osoitteen",
         "aukioloajat", "aukiolo", "sijainti", "missä sijaitsee", "missa sijaitsee",
+        "address", "phone", "phone number", "contact details", "opening hours",
         "terveyskeskus", "terveyskeskuk", "terveysasema", "terveysaseman",
+        "health station", "health centre", "health center",
         "rautatieasema", "juna asema", "juna-asema", "hammaslaakari", "hammaslaakarit",
         "hammaslääkäri", "hammaslääkärit",
     )
@@ -727,10 +844,12 @@ def plan_response(message: str) -> IntentDecision:
     food_or_compatibility_terms = (
         "kauramaito", "maito", "kahvi", "kahviin", "torttutaikina", "pullataikina",
         "taikina", "tayte", "täyte", "resepti", "ruoka", "food",
+        "oat milk", "milk", "coffee", "dough", "recipe",
     )
     compatibility_question_terms = (
         "kayko", "käykö", "sopiiko", "voiko kayttaa", "voiko käyttää",
         "mika olisi hyva", "mikä olisi hyvä", "hyva vaihtoehto", "hyvä vaihtoehto",
+        "can", "be used", "go with", "fit", "suitable",
     )
     if (
         not use_chat_context

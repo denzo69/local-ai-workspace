@@ -46,6 +46,7 @@ DOMAIN_KEYWORDS = {
         "aukiolo",
         "autohuolto",
         "autohuollot",
+        "autohuoll",
         "huolto",
         "renkaat",
         "kahvila",
@@ -153,11 +154,18 @@ def _find_domain(texts: Iterable[str]) -> str:
     best_domain = ""
     best_score = 0
     for domain, keywords in DOMAIN_KEYWORDS.items():
-        score = sum(1 for keyword in keywords if keyword.lower() in combined)
+        score = sum(1 for keyword in keywords if _keyword_matches(combined, keyword))
         if score > best_score:
             best_domain = domain
             best_score = score
     return best_domain
+
+
+def _keyword_matches(text: str, keyword: str) -> bool:
+    normalized = keyword.lower()
+    if len(normalized) <= 3 and normalized.isascii() and normalized.isalnum():
+        return re.search(rf"(?<!\w){re.escape(normalized)}(?!\w)", text) is not None
+    return normalized in text
 
 
 def _clean_topic(message: str) -> str:
