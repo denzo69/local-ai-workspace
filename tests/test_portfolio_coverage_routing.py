@@ -44,7 +44,7 @@ from app.intent_planner import (
         ("Mistä ostaa renkaat Lieksassa?", {"intent": "current_external_information", "needs_web": True, "response_mode": "source_bounded_answer"}),
         ("Kesärenkaat autooni mitä huomioida?", {"intent": "practical_everyday", "needs_web": False, "response_mode": "practical_instruction"}),
         ("Kerro lähteistä", {"intent": "source_or_rag_question", "use_rag": True, "response_mode": "source_bounded_answer"}),
-        ("Sää Lieksassa nyt?", {"intent": "current_external_information", "needs_web": True, "response_mode": "source_bounded_answer"}),
+        ("Sää Lieksassa nyt?", {"intent": "current_external_weather", "needs_web": True, "response_mode": "source_bounded_answer"}),
         ("Onko Suomessa talvella lunta?", {"intent": "general_knowledge", "needs_web": False, "response_mode": "general_answer"}),
         ("Hae pullataikinan ohje", {"intent": "current_external_information", "needs_web": True, "response_mode": "source_bounded_answer"}),
         ("Paljonko polttoaineen kulutus Volvo Penta 2003", {"intent": "current_external_information", "needs_web": True, "response_mode": "source_bounded_answer"}),
