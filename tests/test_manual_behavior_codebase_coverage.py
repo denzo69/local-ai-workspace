@@ -33,7 +33,7 @@ def test_manual_behavior_helpers_and_query_building(tmp_path: Path) -> None:
     assert mb._is_local_external_question("Lieksan terveyskeskus puhelin") is True
     assert mb._is_assistant_permission_question(mb._clean_ascii("Mitä oikeuksia sinulla on?")) is True
     assert mb._is_finnish_language_question(mb._clean_ascii("Miten hyvin osaat suomea?")) is True
-    assert mb._is_project_intro_question("mikä tämä projekti") is True
+    assert mb._is_project_intro_question(mb._clean_ascii("mikä tämä projekti")) is True
 
 
 def test_manual_behavior_deterministic_routes(tmp_path: Path) -> None:
