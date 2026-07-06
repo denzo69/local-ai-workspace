@@ -1,0 +1,30 @@
+# VCS and local environments
+.git
+.github
+.venv
+venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+reports
+
+# Local/private runtime data
+.env
+app/memory/auth.json
+app/memory/auth_sessions.json
+app/memory/*.jsonl
+app/memory/chat_log.md
+app/memory/sade_memory.md
+app/memory/learning_reviews.md
+app/memory/vector_db/
+app/memory/backups/
+app/memory/exports/
+app/uploads/
+memory/
+
+# Archives and generated files
+*.zip
+*.log
