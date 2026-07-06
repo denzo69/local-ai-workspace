@@ -163,8 +163,13 @@ def test_output_validator_object_grounding_and_warning_paths() -> None:
             "should_use_chat_context": False,
         },
     }
+    memory_result = validate_output(memory_decision, "Muistan tämän.")
     assert wrong_source_used("Muistan tämän.", memory_decision) is True
-    assert "Vastaus ei sopinut" in validated_reply(memory_decision, "Muistan tämän.")
+    assert memory_result["action"] == "accept_with_warnings"
+    assert memory_result["issues"] == ["memory_ignored_for_memory_question"]
+
+    debug_decision = {"intent": "normal_chat", "language": "fi"}
+    assert "Vastaus ei sopinut" in validated_reply(debug_decision, "target_scope: timeless_general_knowledge")
 
 
 def test_intent_planner_remaining_safe_edges() -> None:
