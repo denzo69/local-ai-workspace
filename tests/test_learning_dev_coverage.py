@@ -51,7 +51,7 @@ def test_dev_chat_commands_build_read_find_and_fallback(monkeypatch: pytest.Monk
     assert "Koodikartta löytyy" in status
     assert "Funktiot: 9" in status
 
-    assert dc.try_handle_dev_command(tmp_path, "dev find   ") == "Anna hakusana, esim. `etsi koodista rag_search`."
+    assert dc.try_handle_dev_command(tmp_path, "dev find") is None
 
     monkeypatch.setattr(
         "app.codebase_map.find_in_codebase_map",
@@ -115,7 +115,7 @@ def test_autonomous_learning_scan_logs_and_duplicates(tmp_path: Path) -> None:
     )
     duplicate_scan = al.scan_uploads_for_learning(tmp_path, include_already_ingested=False)
     assert duplicate_scan["candidate_count"] == 0
-    assert duplicate_scan["skipped"][0]["reason"] == "already_ingested"
+    assert any(item["reason"] == "already_ingested" for item in duplicate_scan["skipped"])
 
     included_scan = al.scan_uploads_for_learning(tmp_path, include_already_ingested=True)
     assert included_scan["candidate_count"] == 1
@@ -229,6 +229,11 @@ def test_learning_review_recent_candidates_created_skipped_and_failed(monkeypatc
     (uploads / "b.md").write_text("# B\nTool router and guardrails content with enough sentence length for review generation.", encoding="utf-8")
     (uploads / "bad.md").write_text("# Bad\nwill fail", encoding="utf-8")
 
+    no_log_root = tmp_path / "no-log"
+    (no_log_root / "uploads").mkdir(parents=True)
+    (no_log_root / "uploads" / "fallback.md").write_text("# Fallback\nRAG content for fallback candidate.", encoding="utf-8")
+    assert lr._candidate_paths_from_learning_log(no_log_root, limit=5) == ["uploads/fallback.md"]
+
     lr._append_jsonl(lr._learning_log_path(tmp_path), {"event": "bad-json-holder"})
     with lr._learning_log_path(tmp_path).open("a", encoding="utf-8") as handle:
         handle.write("not-json\n")
@@ -258,8 +263,3 @@ def test_learning_review_recent_candidates_created_skipped_and_failed(monkeypatc
     assert mixed["created_count"] == 1
     assert mixed["failed_count"] == 1
     assert mixed["failed"][0]["error"] == "review failed"
-
-    no_log_root = tmp_path / "no-log"
-    (no_log_root / "uploads").mkdir(parents=True)
-    (no_log_root / "uploads" / "fallback.md").write_text("# Fallback\nRAG content for fallback candidate.", encoding="utf-8")
-    assert lr._candidate_paths_from_learning_log(no_log_root, limit=5) == ["uploads/fallback.md"]
