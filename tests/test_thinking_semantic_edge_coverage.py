@@ -116,7 +116,7 @@ def test_thinking_layer_source_modes_from_rag_and_weather_intent() -> None:
 
 
 def test_semantic_memory_import_status_rebuild_add_and_search_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    collection = _install_fake_chromadb(monkeypatch)
+    _install_fake_chromadb(monkeypatch)
 
     memory = tmp_path / "memory" / "sade_memory.md"
     memory.parent.mkdir(parents=True)
@@ -148,7 +148,7 @@ def test_semantic_memory_import_status_rebuild_add_and_search_success(monkeypatc
     assert searched["ok"] is True
     assert searched["count"] >= 1
     assert searched["results"][0]["rank"] == 1
-    assert collection.count() >= 1
+    assert FakeClient.collection.count() >= 1
 
 
 def test_semantic_memory_error_and_empty_branches(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
