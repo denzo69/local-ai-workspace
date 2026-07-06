@@ -152,8 +152,9 @@ def test_semantic_memory_import_status_rebuild_add_and_search_success(monkeypatc
 
 
 def test_semantic_memory_error_and_empty_branches(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(sm, "_import_chromadb", lambda: (None, None, RuntimeError("missing chromadb")))
-    rebuild_error = sm.rebuild_semantic_memory_index(tmp_path)
+    with monkeypatch.context() as patched_missing:
+        patched_missing.setattr(sm, "_import_chromadb", lambda: (None, None, RuntimeError("missing chromadb")))
+        rebuild_error = sm.rebuild_semantic_memory_index(tmp_path)
     assert rebuild_error["ok"] is False
 
     collection = _install_fake_chromadb(monkeypatch)
