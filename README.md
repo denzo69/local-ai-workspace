@@ -15,7 +15,7 @@ Local AI Workspace is a portfolio-stage AI engineering project. It demonstrates 
 - Authentication, CSRF protection and audit logging.
 - Project Health Dashboard and developer trace tools.
 - Backup/restore workflow for local data.
-- 93% coverage, 400+ tests and an extensive eval suite.
+- 93.03% coverage, 425 tests and an extensive eval suite.
 
 ## Quickstart
 
