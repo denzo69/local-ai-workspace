@@ -2,7 +2,9 @@
 
 All notable changes to Local AI Workspace are documented here.
 
-## v0.1.5 — Response Planning Layer
+Version headings are kept in descending SemVer order so the public portfolio history is easy to scan.
+
+## v0.1.10 — Response Planning and Portfolio Hygiene
 
 ### Added
 
@@ -22,52 +24,28 @@ All notable changes to Local AI Workspace are documented here.
 - Business-support suggestions are constrained to relevant work, freelance, invoicing, tax, contract or company setup prompts.
 - Improved manual behavior metric parsing for both old and current README wording.
 - Added targeted tests for tool permission edge cases, model-provider status reporting and audit-log invalid-input handling.
+- Polished the public portfolio surface and release-history presentation.
+- Aligned `VERSION` with the latest public changelog line.
 
-### Verified
+### Fixed
 
-- Date/time questions do not trigger web search.
-- General knowledge questions do not trigger web search unnecessarily.
-- Assistant permission questions route to tool/capability boundaries.
-- Finnish language capability questions no longer trigger Self-State output.
-- Health/lifestyle prompts do not receive unrelated business or tax suggestions.
+- Corrected the dependency list by replacing `httpx2` with `httpx`.
+- Added dependency version ranges to make fresh portfolio installs less sensitive to upstream package changes.
 
-- Local test status: `296 passed`.
-- Total coverage: `90%` with branch coverage enabled.
-- Large interaction baseline: `10,000` chains / `40,000` checks / `0` failures.
+### Documented status
+
+- Current README status: `342 tests passing locally`.
+- Current README coverage: `92%` total test coverage with branch coverage enabled.
+- GitHub Actions: passing.
+- Large interaction baseline: `10,000` question chains / `40,000` routing checks / `0` failures.
 - Bilingual behavior eval: `21` cases / `0` failures.
 - Focus behavior eval: `1,000` cases / `4,000` checks / `0` failures.
 
 ### Notes
 
-This release reduces single-prompt patching by adding a general planning layer before response generation.
+This release reduces single-prompt patching by adding a general planning layer before response generation, and also cleans up the public install and release metadata for portfolio review.
 
-## v0.1.4 — Portfolio Hardening
-
-### Added
-
-- Project Health Dashboard with sanitized status reporting.
-- Manual AI behavior check routing for portfolio smoke tests.
-- Additional safety routing for high-risk prompts.
-- Additional tests for auth/session safety, upload validation, project health reporting, RAG, web search, model fallback, tool routing, API routes and live eval paths.
-
-### Changed
-
-- Polished README presentation and portfolio wording.
-- Improved public project naming and GitHub repository presentation.
-- Replaced overly specific recipe-search wording with broader factual-search routing language.
-
-### Verified
-
-- 174 tests passing locally.
-- 88% total test coverage.
-- GitHub Actions passing.
-- Release readiness check passing.
-
-### Notes
-
-This remains a portfolio-stage local-first AI assistant project, not a production SaaS product.
-
-## [0.1.9-manual-ai-behavior-hardening] - 2026-07-02
+## v0.1.9 — Manual AI Behavior Hardening
 
 ### Added
 
@@ -79,13 +57,22 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
 - High-risk prompt-injection attempts targeting `system_prompt.md`, `auth.json`, session data or secrets are blocked before falling through to the model provider.
 - Destructive memory/audit-log deletion requests now receive a confirmation-boundary response instead of relying on the model to refuse.
 - Practical Ollama disk-usage guidance is answered with safe PowerShell commands and an explicit non-deletion warning.
+- Polished README presentation and portfolio wording.
+- Improved public project naming and GitHub repository presentation.
+- Replaced overly specific recipe-search wording with broader factual-search routing language.
 
 ### Testing
 
 - Local test status: `174 passed`.
 - Total coverage: `88%`.
+- GitHub Actions passing.
+- Release readiness check passing.
 
-## [0.1.8-coverage-hardening] - 2026-07-02
+### Notes
+
+This remains a portfolio-stage local-first AI assistant project, not a production SaaS product.
+
+## v0.1.8 — Coverage Hardening
 
 ### Added
 
@@ -101,7 +88,7 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
 - Local test status: `173 passed`.
 - Total coverage: `88%`.
 
-## [0.1.7-coverage-hardening] - 2026-07-02
+## v0.1.7 — Coverage Hardening
 
 ### Added
 
@@ -112,7 +99,7 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
 - Local test status: `171 passed`.
 - Total coverage: `87%`.
 
-## [0.1.6-project-health-dashboard] - 2026-07-02
+## v0.1.6 — Project Health Dashboard
 
 ### Added
 
@@ -130,7 +117,7 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
 - Local test status: `161 passed`.
 - Total coverage: `85%`.
 
-## [0.1.5-recipe-search-routing] - 2026-06-28
+## v0.1.5 — Recipe Search Routing
 
 ### Added
 
@@ -142,7 +129,7 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
 - Local test status: `161 passed`.
 - Total coverage: `85%`.
 
-## [0.1.4-automatic-factual-search] - 2026-06-28
+## v0.1.4 — Automatic Factual Search
 
 ### Added
 
@@ -160,7 +147,7 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
 - Local test status: `159 passed`.
 - Total coverage: `85%`.
 
-## [0.1.3-coverage-lift] - 2026-06-27
+## v0.1.3 — Coverage Lift
 
 ### Added
 
@@ -179,7 +166,7 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
   - `app/live_evals.py`: `29%` -> `100%`.
   - `app/rag_quality.py`: `70%` -> `100%`.
 
-## [0.1.2-reliability-hardening] - 2026-06-27
+## v0.1.2 — Reliability Hardening
 
 ### Added
 
@@ -199,7 +186,7 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
   - `app/model_provider.py`: `72%` -> `95%`.
   - `app/tool_router.py`: `47%` -> `69%`.
 
-## [0.1.1-portfolio-polish] - 2026-06-27
+## v0.1.1 — Portfolio Polish
 
 ### Added
 
@@ -218,7 +205,7 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
 - Current local test status: `96 passed`.
 - Release readiness check: `ok: true`.
 
-## [0.1.0-portfolio-beta] - 2026-06-25
+## v0.1.0 — Portfolio Beta
 
 ### Changed
 
@@ -231,7 +218,7 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
 - Historical local test status: `85 passed`.
 - GitHub Actions passes on Python 3.11 and 3.12.
 
-## [0.1.0] - 2026-06-24
+## v0.1.0 — Initial Local AI Workspace
 
 ### Added
 
