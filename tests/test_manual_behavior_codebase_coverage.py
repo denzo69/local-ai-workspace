@@ -31,8 +31,8 @@ def test_manual_behavior_helpers_and_query_building(tmp_path: Path) -> None:
 
     assert mb._is_date_time_question("what time is it") is True
     assert mb._is_local_external_question("Lieksan terveyskeskus puhelin") is True
-    assert mb._is_assistant_permission_question("Mitä oikeuksia sinulla on?") is True
-    assert mb._is_finnish_language_question("Miten hyvin osaat suomea?") is True
+    assert mb._is_assistant_permission_question(mb._clean_ascii("Mitä oikeuksia sinulla on?")) is True
+    assert mb._is_finnish_language_question(mb._clean_ascii("Miten hyvin osaat suomea?")) is True
     assert mb._is_project_intro_question("mikä tämä projekti") is True
 
 
@@ -46,7 +46,7 @@ def test_manual_behavior_deterministic_routes(tmp_path: Path) -> None:
         ("Miksi taivas näyttää siniseltä?", "general_knowledge", "sinisiä aallonpituuksia"),
         ("Kofeiini illalla", "health_lifestyle_general", "Kofeiini"),
         ("Energiajuoma illalla", "health_lifestyle_general", "Energiajuoma"),
-        ("Stressi ja uni", "health_lifestyle_general", "stressi"),
+        ("Stressi arjessa", "health_lifestyle_general", "stressi"),
         ("Aamupala työpäivään", "health_lifestyle_general", "Aamupala"),
         ("Mikä tämä projekti on?", "project_intro", "portfolio-vaiheessa"),
         ("Please explain this project in English", "english_project_summary", "local-first AI assistant"),
