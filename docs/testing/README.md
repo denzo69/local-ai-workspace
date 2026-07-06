@@ -23,8 +23,8 @@ Running pytest writes:
 
 Verified local baseline:
 
-- 425 tests passing locally
-- 93.03% total test coverage with branch coverage enabled
+- 432 tests passing locally
+- 93.31% total test coverage with branch coverage enabled
 - Coverage gate: 60% minimum baseline guard
 - CI matrix: Python 3.10, 3.11 and 3.12 on Ubuntu
 
@@ -38,6 +38,7 @@ The project includes deterministic and regression-oriented coverage for:
 - manual AI behavior routing
 - RAG/source boundaries
 - web-search routing
+- semantic memory and thinking-layer behavior
 - memory governance
 - auth/session behavior
 - tool routing and tool risk policies
