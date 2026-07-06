@@ -4,6 +4,36 @@ All notable changes to Local AI Workspace are documented here.
 
 Version headings are kept in descending SemVer order so the public portfolio history is easy to scan.
 
+## v0.1.11 — CI/CD and Coverage Hardening
+
+### Added
+
+- Upgraded the GitHub Actions CI workflow into a small production-team style pipeline.
+- Added Python 3.10, 3.11 and 3.12 test matrix on Ubuntu.
+- Added advisory Ruff, mypy and pip-audit jobs.
+- Added a coverage gate with HTML/XML coverage artifacts.
+- Added a tag-based Docker/GHCR release workflow.
+- Added Dockerfile and Docker ignore rules for release-image builds.
+- Added CI/CD roadmap and architecture-aligned test plan documentation.
+- Added coverage-focused tests for persona/context handling, manual behavior routing and codebase map analysis.
+
+### Changed
+
+- Updated GitHub Actions to Node 24-compatible action versions where available.
+- Updated README testing status to the current local coverage baseline.
+- Raised local branch coverage from 92% to 93% while increasing the test suite from 342 to 419 passing tests.
+- Improved coverage for persona_layer, conversation_context, manual_behavior and codebase_map without relying on real LLM, Ollama or web calls.
+
+### Documented status
+
+- Current README status: `419 tests passing locally`.
+- Current README coverage: `93%` total test coverage with branch coverage enabled.
+- CI is configured with quality checks, dependency audit, Python 3.10-3.12 matrix and coverage artifacts.
+
+### Notes
+
+This release focuses on CI/CD maturity and maintainable coverage growth. It keeps quality and security checks advisory at first so the project can harden gradually without making the pipeline brittle.
+
 ## v0.1.10 — Response Planning and Portfolio Hygiene
 
 ### Added
@@ -87,157 +117,3 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
 
 - Local test status: `173 passed`.
 - Total coverage: `88%`.
-
-## v0.1.7 — Coverage Hardening
-
-### Added
-
-- Added targeted tests for self-state fallback reporting, memory-cleaner safety paths, codebase-map edge cases, auth validation, session expiry, rate limiting, CLI flows, and health-summary error branches.
-
-### Testing
-
-- Local test status: `171 passed`.
-- Total coverage: `87%`.
-
-## v0.1.6 — Project Health Dashboard
-
-### Added
-
-- Added a sanitized `/health/summary` endpoint for portfolio-friendly project health reporting.
-- Added a Project Health Dashboard in Settings with cards for server, version, model, memory, RAG, web search, audit log, tests, release readiness, storage, and privacy.
-- Added an Advanced raw system status section so detailed diagnostics stay separate from the normal dashboard.
-
-### Changed
-
-- Normal health dashboard output hides local filesystem paths and reports configured storage paths as status fields instead.
-- Health summary uses lightweight checks and avoids loading heavy semantic-memory dependencies.
-
-### Testing
-
-- Local test status: `161 passed`.
-- Total coverage: `85%`.
-
-## v0.1.5 — Recipe Search Routing
-
-### Added
-
-- Added automatic web-search routing for recipe and practical instruction questions, including prompts such as `Hae pullataikinan ohje`.
-- Added regression tests to prevent recipe/instruction prompts from falling through to unrelated model answers such as Git pull instructions.
-
-### Testing
-
-- Local test status: `161 passed`.
-- Total coverage: `85%`.
-
-## v0.1.4 — Automatic Factual Search
-
-### Added
-
-- Added automatic web-search routing for broad factual questions, including product/specification questions such as fuel consumption, model data, prices, weights, dimensions, manuals, and technical details.
-- Added model-provider fallback behavior: if the local model returns an empty/502 response, chat can fall back to web search instead of showing a raw provider error to the user.
-- Added tests for Volvo Penta 2003T style factual questions through both the tool router and the full `/chat` endpoint.
-
-### Changed
-
-- Web search status now reports automatic search as enabled.
-- Chat no longer relies only on narrow weather/lottery/current-info detection before using search.
-
-### Testing
-
-- Local test status: `159 passed`.
-- Total coverage: `85%`.
-
-## v0.1.3 — Coverage Lift
-
-### Added
-
-- Added targeted coverage tests for API routes, memory endpoints, tool file operations, config updates, Ollama status handling, and chat routing fallbacks.
-- Added tool-router command coverage for common user-facing commands, file operations, semantic search, preview routing, and guarded error paths.
-- Added live eval runner tests for passing model responses and provider-error handling.
-- Added RAG quality gate tests for passing, empty-result, weak-score, low-coverage, and missing-ranking-reason cases.
-
-### Testing
-
-- Local test status: `156 passed`.
-- Total coverage: `85%`.
-- Key coverage improvements:
-  - `app/main.py`: `77%` -> `84%`.
-  - `app/tool_router.py`: `69%` -> `77%`.
-  - `app/live_evals.py`: `29%` -> `100%`.
-  - `app/rag_quality.py`: `70%` -> `100%`.
-
-## v0.1.2 — Reliability Hardening
-
-### Added
-
-- Added targeted reliability tests for the highest-risk AI integration paths:
-  - RAG retrieval ranking, source filtering, strict document intent, chat-log exclusion, and curated upload selection.
-  - Web search provider failures, Google/Brave provider parsing, cache behavior, source review, and weather-source summarization.
-  - Ollama/model provider response handling, unknown provider rejection, and connection-error wrapping.
-  - Tool-router routing for guarded file tools, semantic search, status/log routes, and tool-error handling.
-
-### Testing
-
-- Local test status: `125 passed`.
-- Total coverage: `71%`.
-- Key coverage improvements:
-  - `app/rag_engine.py`: `52%` -> `80%`.
-  - `app/web_search.py`: `61%` -> `81%`.
-  - `app/model_provider.py`: `72%` -> `95%`.
-  - `app/tool_router.py`: `47%` -> `69%`.
-
-## v0.1.1 — Portfolio Polish
-
-### Added
-
-- Added backend build metadata: version, git build, and backend start time.
-- Added a visible UI version/build chip to make stale browser/backend states easier to spot.
-- Added `app/restart_local_ai_workspace.bat` for a clean local restart workflow.
-
-### Changed
-
-- Updated Quickstart and README paths to use clone-friendly public repository commands.
-- Updated the legacy start script wording from Säde v1 to Local AI Workspace.
-- Removed `--reload` from the simple start script to reduce confusion during portfolio demos.
-
-### Testing
-
-- Current local test status: `96 passed`.
-- Release readiness check: `ok: true`.
-
-## v0.1.0-beta — Portfolio Beta
-
-### Changed
-
-- Renamed the public portfolio surface to Local AI Workspace.
-- Updated README, screenshots, SECURITY, CONTRIBUTING, and issue templates for an English-speaking GitHub audience.
-- Clarified desktop and mobile browser access to the same local AI workspace.
-
-### Testing
-
-- Historical local test status: `85 passed`.
-- GitHub Actions passes on Python 3.11 and 3.12.
-
-## v0.1.0 — Initial Local AI Workspace
-
-### Added
-
-- Local FastAPI-based AI workspace UI.
-- Chat, memory, source upload, and settings views.
-- Finnish/English UI language switch.
-- Authentication, CSRF protection, and session handling.
-- Audit log, debug trace, and tool risk policy.
-- Static AI evals and live eval entrypoint.
-- RAG quality checks and source-aware retrieval flow.
-- Backup/restore and memory governance APIs.
-- GitHub Actions test workflow.
-- Portfolio-ready README, QUICKSTART, SECURITY, and CONTRIBUTING files.
-
-### Security
-
-- Local-first usage model documented.
-- Personal memory data, sessions, vector DB, backups, and uploads excluded from Git tracking.
-
-### Testing
-
-- Historical local test status: `51 passed`.
