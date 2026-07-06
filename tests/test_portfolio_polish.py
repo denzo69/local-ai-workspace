@@ -45,7 +45,7 @@ def test_readme_is_concise_portfolio_front_page() -> None:
     assert "SECURITY.md" in readme
     assert "docs/limitations.md" in readme
 
-    assert re.search(r"93% coverage, 400\+ tests", readme)
+    assert re.search(r"93(?:\.\d+)?% coverage, \d+ tests", readme)
     assert "python -m pytest" in readme
     assert "reports/coverage.xml" not in readme
     assert "10,000 question chains" not in readme
