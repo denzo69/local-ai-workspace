@@ -109,11 +109,17 @@ More detail: [QUICKSTART.md](QUICKSTART.md)
 
 ## Tests
 
-Run the test suite:
+Run the full test suite and generate coverage/JUnit reports:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m pytest
 ```
+
+The pytest configuration writes:
+
+- `reports/coverage.xml`
+- `reports/junit.xml`
+- `reports/htmlcov/`
 
 Current local status:
 
@@ -124,14 +130,6 @@ Current local status:
 - Bilingual behavior eval: 21 cases / 0 failures.
 - Focus behavior eval: 1,000 cases / 4,000 checks / 0 failures.
 - Targeted hardening covers auth/session safety, project health reporting, upload validation, response planning, answer grounding, manual AI behavior checks, persona/context handling, codebase mapping, RAG, web search, automatic factual-search routing, model provider fallback, tool routing, API routes, live eval entrypoints and cleanup paths.
-
-Run coverage locally:
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install pytest-cov
-New-Item -ItemType Directory -Force -Path reports | Out-Null
-.\.venv\Scripts\python.exe -m pytest -q --cov=app --cov-branch --cov-report=term-missing --cov-report=xml:reports/coverage.xml --cov-report=html:reports/htmlcov
-```
 
 Release readiness:
 
