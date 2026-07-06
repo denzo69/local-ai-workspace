@@ -23,12 +23,10 @@ Running pytest writes:
 
 Verified local baseline:
 
-- 419 tests passing locally
-- 93% total test coverage with branch coverage enabled
+- 425 tests passing locally
+- 93.03% total test coverage with branch coverage enabled
 - Coverage gate: 60% minimum baseline guard
 - CI matrix: Python 3.10, 3.11 and 3.12 on Ubuntu
-
-The suite has since been expanded with additional learning/dev coverage tests; update the exact count only after the full suite has been re-run successfully.
 
 ## Eval and hardening coverage
 
