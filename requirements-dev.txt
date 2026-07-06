@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# CI / local quality tooling
+ruff>=0.8,<1.0
+mypy>=1.13,<2.0
+pip-audit>=2.7,<3.0
