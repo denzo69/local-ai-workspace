@@ -4,6 +4,31 @@ All notable changes to Local AI Workspace are documented here.
 
 Version headings are kept in descending SemVer order so the public portfolio history is easy to scan.
 
+## v0.1.13 — Thinking and Semantic Memory Coverage
+
+### Added
+
+- Added edge-case coverage for the Thinking Layer, including safety-boundary, project-aware, source-grounded and natural-conversation routing modes.
+- Added semantic-memory coverage using a fake ChromaDB path so success, empty, error and formatting branches can be tested without a real vector database.
+- Added tests for semantic-memory context truncation, missing metadata/distance handling and empty-index behavior.
+
+### Changed
+
+- Raised `thinking_layer.py` coverage to 100%.
+- Raised `semantic_memory.py` coverage to 97%.
+- Updated portfolio README and testing documentation to the verified 432-test baseline.
+- Relaxed README portfolio checks so precise coverage/test baselines can evolve without breaking the suite.
+
+### Documented status
+
+- Current README status: `432 tests passing locally`.
+- Current README coverage: `93.31%` total test coverage with branch coverage enabled.
+- Latest verified run: `432 passed in 84.08s` on Windows / Python 3.13.
+
+### Notes
+
+This release improves meaningful branch coverage around response-scaffolding and semantic-memory behavior while keeping external dependencies mocked. No real Ollama, web or ChromaDB service is required for the added tests.
+
 ## v0.1.12 — Portfolio Front Page and Learning Coverage
 
 ### Added
