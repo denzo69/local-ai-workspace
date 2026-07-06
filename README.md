@@ -45,7 +45,7 @@ Local AI Workspace demonstrates practical AI engineering rather than only prompt
 - Authentication with local users, CSRF protection and session cookies.
 - Static and live AI eval entrypoints.
 - Backup/restore workflow for local data.
-- GitHub Actions CI with pytest and coverage reporting.
+- GitHub Actions CI with quality checks, dependency audit, pytest matrix and coverage reporting.
 
 ## Architecture
 
@@ -117,13 +117,13 @@ Run the test suite:
 
 Current local status:
 
-- 342 tests passing locally.
-- 92% total test coverage with branch coverage enabled.
-- GitHub Actions: passing.
+- 419 tests passing locally.
+- 93% total test coverage with branch coverage enabled.
+- GitHub Actions: configured with quality checks, dependency audit, Python 3.10-3.12 matrix and coverage artifacts.
 - Large deterministic interaction baseline: 10,000 question chains / 40,000 routing checks / 0 failures.
 - Bilingual behavior eval: 21 cases / 0 failures.
 - Focus behavior eval: 1,000 cases / 4,000 checks / 0 failures.
-- Targeted hardening covers auth/session safety, project health reporting, upload validation, response planning, answer grounding, manual AI behavior checks, RAG, web search, automatic factual-search routing, model provider fallback, tool routing, API routes, live eval entrypoints and cleanup paths.
+- Targeted hardening covers auth/session safety, project health reporting, upload validation, response planning, answer grounding, manual AI behavior checks, persona/context handling, codebase mapping, RAG, web search, automatic factual-search routing, model provider fallback, tool routing, API routes, live eval entrypoints and cleanup paths.
 
 Run coverage locally:
 
@@ -218,14 +218,3 @@ See [SECURITY.md](SECURITY.md).
 - [Tool Risk Policy](docs/tool_risk_policy.md)
 - [AI Evaluation Policy](docs/ai_evaluation_policy.md)
 - [Memory Governance Policy](docs/memory_governance_policy.md)
-- [Backup/Restore Policy](docs/backup_restore_policy.md)
-- [Repo Cleanup Plan](docs/repo_cleanup_plan.md)
-
-## Project status
-
-Local AI Workspace is a portfolio-stage AI assistant project. It is not a commercial SaaS product and should not be treated as production-ready infrastructure without additional hardening, deployment review, and operational monitoring.
-
-## License
-
-MIT License. See [LICENSE](LICENSE).
-
