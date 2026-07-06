@@ -14,6 +14,9 @@ def test_portfolio_files_exist() -> None:
         "docs/code_rewrite_protocol.md",
         "docs/architecture.md",
         "docs/repo_cleanup_plan.md",
+        "docs/DEVELOPER_SETUP.md",
+        "docs/testing/README.md",
+        "docs/limitations.md",
         ".github/ISSUE_TEMPLATE/bug_report.yml",
         ".github/ISSUE_TEMPLATE/feature_request.yml",
         ".github/pull_request_template.md",
@@ -23,15 +26,32 @@ def test_portfolio_files_exist() -> None:
         assert (ROOT / relative).exists(), relative
 
 
-def test_readme_has_portfolio_sections() -> None:
+def test_readme_is_concise_portfolio_front_page() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "What this project demonstrates" in readme
+
+    assert "Local-first AI assistant" in readme
+    assert "Highlights" in readme
+    assert "Quickstart" in readme
     assert "Architecture" in readme
-    assert "Suggested demo flow" in readme
-    assert re.search(r"\d+ tests passing locally", readme)
-    assert re.search(r"\d+% total test coverage", readme)
-    assert "Known limitations" in readme
+    assert "Screenshots" in readme
+    assert "Testing" in readme
+    assert "Security" in readme
+    assert "Limitations" in readme
     assert "MIT License" in readme
+
+    assert "docs/architecture.md" in readme
+    assert "docs/DEVELOPER_SETUP.md" in readme
+    assert "docs/testing/README.md" in readme
+    assert "SECURITY.md" in readme
+    assert "docs/limitations.md" in readme
+
+    assert re.search(r"93% coverage, 400\+ tests", readme)
+    assert "python -m pytest" in readme
+    assert "reports/coverage.xml" not in readme
+    assert "10,000 question chains" not in readme
+    assert "40,000 routing checks" not in readme
+    assert "create_sade_user.bat" not in readme
+    assert "restart_local_ai_workspace.bat" not in readme
 
 
 def test_code_rewrite_protocol_enforces_truth_boundary() -> None:
