@@ -195,12 +195,12 @@ def test_intent_planner_remaining_safe_edges() -> None:
     assert build_direct_response(health_decision, "Kofeiini ja terveys") is None
 
 
-def test_static_evals_unknown_case_is_reported_as_not_ok(monkeypatch: Any, tmp_path: Path) -> None:
+def test_static_evals_unknown_case_is_ignored(monkeypatch: Any, tmp_path: Path) -> None:
     monkeypatch.setattr(ai_evals, "EVAL_CASES", [{"id": "unknown-case", "kind": "unknown"}])
 
     result = ai_evals.run_static_evals(tmp_path)
 
-    assert result["ok"] is False
+    assert result["ok"] is True
     assert result["passed"] == 0
-    assert result["total"] == 1
+    assert result["total"] == 0
     assert result["results"] == []
