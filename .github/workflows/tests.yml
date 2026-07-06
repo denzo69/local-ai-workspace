@@ -101,25 +101,19 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
-      - name: Run tests with coverage
+      - name: Run tests with pytest.ini
         run: |
           mkdir -p reports
-          python -m pytest -q --tb=short \
-            --cov=app \
-            --cov-branch \
-            --cov-fail-under=60 \
-            --cov-report=term-missing \
-            --cov-report=xml:reports/coverage.xml \
-            --cov-report=html:reports/htmlcov \
-            2>&1 | tee reports/pytest-output.txt
+          python -m pytest 2>&1 | tee reports/pytest-output.txt
 
-      - name: Upload coverage reports
+      - name: Upload test and coverage reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v6
         with:
-          name: coverage-${{ matrix.os }}-py${{ matrix.python-version }}
+          name: test-reports-${{ matrix.os }}-py${{ matrix.python-version }}
           path: |
             reports/coverage.xml
+            reports/junit.xml
             reports/htmlcov/
             reports/pytest-output.txt
           if-no-files-found: warn
