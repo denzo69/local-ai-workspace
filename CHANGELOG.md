@@ -4,6 +4,32 @@ All notable changes to Local AI Workspace are documented here.
 
 Version headings are kept in descending SemVer order so the public portfolio history is easy to scan.
 
+## v0.1.12 — Portfolio Front Page and Learning Coverage
+
+### Added
+
+- Added dedicated Developer Setup documentation for local commands and Windows helper scripts.
+- Added dedicated Testing documentation for pytest, branch coverage, JUnit XML and HTML coverage reports.
+- Added Limitations documentation to keep production-readiness boundaries visible without crowding the README.
+- Added learning/dev coverage tests for developer chat commands, autonomous learning scan/loop behavior and learning-review workflows.
+
+### Changed
+
+- Simplified README into a concise portfolio front page instead of a technical dump.
+- Moved detailed testing, setup, route and limitation information behind documentation links.
+- Updated portfolio and release-readiness tests so they enforce the new README structure.
+- Updated verified test baseline from 419 to 425 passing tests.
+
+### Documented status
+
+- Current README status: `425 tests passing locally`.
+- Current README coverage: `93.03%` total test coverage with branch coverage enabled.
+- Latest verified run: `425 passed in 34.36s` on Windows / Python 3.13.
+
+### Notes
+
+This release improves the public portfolio surface while preserving the deeper technical evidence in documentation. The README now works as a recruiter-friendly front page, with setup, testing and limitations available one click deeper.
+
 ## v0.1.11 — CI/CD and Coverage Hardening
 
 ### Added
