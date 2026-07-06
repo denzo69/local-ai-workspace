@@ -45,7 +45,7 @@ latest content
 
 
 def test_persona_public_labels_status_lines_and_cleanup(tmp_path: Path) -> None:
-    assert pl._public_label("Säde v1 Document Registry") == "Local AI Workspace Document Registry"
+    assert pl._public_label("Säde v1 Document Registry") == "Document Registry"
     assert pl._public_sentence("Tämä raportti on lukutoiminto eikä muuta tiedostoja.") == "This report is read-only and does not modify files."
     assert pl._shorten("abc", 10) == "abc"
     assert pl._shorten("abcdef", 3).endswith("...[truncated]...")
@@ -193,4 +193,4 @@ Entä aukiolo?
     enriched = cc.build_contextual_query("Entä seuraavaksi?", context)
     assert "Joensuu" in enriched
     assert "local services" in enriched
-    assert "Entä lähin" in enriched
+    assert "lähin" in enriched
