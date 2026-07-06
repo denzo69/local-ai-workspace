@@ -208,6 +208,10 @@ See [SECURITY.md](SECURITY.md).
 - Some internal names originate from the earlier Finnish prototype stage.
 - Production deployment would require additional hardening, monitoring, user management and operational review.
 
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)
