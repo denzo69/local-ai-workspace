@@ -205,7 +205,7 @@ This remains a portfolio-stage local-first AI assistant project, not a productio
 - Current local test status: `96 passed`.
 - Release readiness check: `ok: true`.
 
-## v0.1.0 — Portfolio Beta
+## v0.1.0-beta — Portfolio Beta
 
 ### Changed
 
