@@ -1,6 +1,6 @@
 ﻿# Local AI Workspace
 
-![Tests](https://github.com/denzo69/local-ai-workspace/actions/workflows/tests.yml/badge.svg)
+![CI](https://github.com/denzo69/local-ai-workspace/actions/workflows/tests.yml/badge.svg?branch=master)
 
 Local AI Workspace is a local-first AI assistant project demonstrating practical AI engineering with FastAPI, local LLM integration, memory, retrieval, testing, security and maintainable architecture.
 
