@@ -1,5 +1,5 @@
-from pathlib import Path
 import re
+from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -28,8 +28,14 @@ def test_portfolio_files_exist() -> None:
 
 def test_readme_is_concise_portfolio_front_page() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    lower = readme.lower()
 
-    assert "Local-first AI assistant" in readme
+    assert "local-first ai" in lower
+    assert "fastapi" in lower
+    assert "ollama" in lower
+    assert "rag" in lower
+    assert "portfolio-stage" in lower
+    assert "What it does" in readme
     assert "Highlights" in readme
     assert "Quickstart" in readme
     assert "Architecture" in readme
