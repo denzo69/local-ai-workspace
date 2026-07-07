@@ -21,14 +21,14 @@ Running pytest writes:
 
 ## Current baseline
 
-Verified local baseline:
+Last fully green verified local baseline:
 
 - 432 tests passing locally
 - 93.31% total test coverage with branch coverage enabled
 - Coverage gate: 60% minimum baseline guard
 - CI matrix: Python 3.10, 3.11 and 3.12 on Ubuntu
 
-The current baseline predates the README value-proposition polish. Re-run `python -m pytest` after pulling the latest copy changes before updating these numbers again.
+A later README wording test fix may change the raw test count on the next green run. Update these exact numbers only after a fully passing `python -m pytest` run.
 
 ## Eval and hardening coverage
 
