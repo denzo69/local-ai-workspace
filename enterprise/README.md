@@ -2,7 +2,7 @@
 
 Status: roadmap / implementation planning
 
-Enterprise Edition is the planned commercial hardening path for Local AI Workspace. It extends the current local-first portfolio project with security, multi-tenant data separation, plugins, observability and deployability.
+Enterprise Edition is a planned technical hardening path for Local AI Workspace. It extends the current local-first portfolio project with security planning, workspace data separation, plugins, observability and deployment documentation.
 
 The current public project remains a portfolio-stage local-first AI workspace. Enterprise Edition documents describe planned, testable hardening work and should not be interpreted as a production-readiness claim until the features are implemented, tested and reviewed.
 
@@ -16,10 +16,30 @@ See [Enterprise Edition Roadmap](ROADMAP.md).
 |---|---|---|
 | 1 | [Security Pack](security-pack/README.md) | planned / implementation-ready |
 | 2 | [Multi-tenant Architecture](multi-tenant/README.md) | planned |
-| 3 | Plugin Interface | planned |
-| 4 | Observability Pack | planned |
-| 5 | Deployment Pack | planned |
-| 6 | Enterprise Sales Pack | planned |
+| 3 | [Plugin Interface](plugins/README.md) | planned |
+| 4 | [Observability Pack](observability/README.md) | planned |
+| 5 | [Deployment Pack](deployment/README.md) | planned |
+| 6 | [Enterprise Docs](docs/README.md) | planned |
+
+## Repository layout
+
+```text
+enterprise/
+  security-pack/
+  multi-tenant/
+  plugins/
+  observability/
+  deployment/
+  docs/
+```
+
+Related top-level planning areas:
+
+```text
+charts/   # Helm planning
+docker/   # container and compose planning
+pitch/    # presentation placeholder
+```
 
 ## Positioning
 
@@ -33,16 +53,6 @@ Avoid until implementation and review are complete:
 
 ## Current verified baseline
 
-- 425 tests passing locally
-- 93.03% total test coverage with branch coverage enabled
-- Local-first FastAPI + Ollama + RAG + memory + safety routing architecture
+The current verified test and coverage baseline is tracked in [Testing](../docs/testing/README.md).
 
-## Commercial direction
-
-Enterprise Edition is intended to make the project easier to package for:
-
-- internal AI assistant pilots
-- local-first RAG deployments
-- air-gapped or privacy-sensitive environments
-- AI platform engineering portfolio review
-- consulting and implementation work
+Current public README positioning is tracked in [README Positioning Notes](../docs/readme_positioning_notes.md).
