@@ -1,6 +1,6 @@
 # Enterprise Edition Roadmap
 
-This roadmap turns Local AI Workspace from a portfolio-stage local-first AI project into a more commercial, enterprise-style implementation path.
+This roadmap turns Local AI Workspace from a portfolio-stage local-first AI project into a planned enterprise-style hardening path.
 
 Important boundary:
 
@@ -15,7 +15,7 @@ Important boundary:
 | 3 | Plugin Interface | Extensible tool/source/plugin system | `v1.3-enterprise-plugins` |
 | 4 | Observability Pack | Metrics, structured logs and tracing plan | `v1.4-enterprise-observability` |
 | 5 | Deployment Pack | Docker Compose, Helm and offline deployment path | `v1.5-enterprise-deployment` |
-| 6 | Sales and Packaging Pack | Feature matrix, pitch material and buyer-facing docs | `v1.6-enterprise-preview` |
+| 6 | Enterprise Docs | Review notes, feature matrix and release documentation structure | `v1.6-enterprise-preview` |
 
 ## Sprint 1 — Enterprise Security Pack
 
@@ -119,23 +119,22 @@ Output:
 
 Status: planned.
 
-## Sprint 6 — Sales and Packaging Pack
+## Sprint 6 — Enterprise Docs
 
-Goal: package the project for buyer, recruiter and pilot-customer review.
+Goal: keep review-oriented Enterprise Edition documentation organized and realistic.
 
 Planned work:
 
-- Community vs Enterprise feature matrix
-- buyer-facing one-pager
-- pitch-deck outline
-- pilot implementation offer
-- pricing assumptions
+- feature matrix
+- review checklist
+- implementation notes
+- release notes template
+- documentation index
 - security and limitation wording
-- LinkedIn/GitHub launch copy
 
 Output:
 
-- `enterprise/sales-pack/`
+- `enterprise/docs/`
 - target: `v1.6-enterprise-preview`
 
 Status: planned.
@@ -158,6 +157,6 @@ The Enterprise Edition roadmap is complete when:
 3. Add Sprint 3 plugin boundaries.
 4. Add Sprint 4 observability.
 5. Add Sprint 5 deployment packaging.
-6. Add Sprint 6 sales/pilot packaging.
+6. Add Sprint 6 enterprise documentation.
 
-Do not start with sales packaging before security and multi-tenant boundaries are clear.
+Do not present the roadmap as production-ready until the planned features are implemented, tested and reviewed.
