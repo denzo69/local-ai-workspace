@@ -17,6 +17,14 @@ Version headings are kept in descending SemVer order so the public portfolio his
 - Reframed the public README tagline around a local-first AI workspace rather than only an assistant project.
 - Clarified that the project combines chat UI, persistent memory, document/source retrieval, safety checks, audit logs, eval/trace views, health checks and backup/export workflows.
 - Kept portfolio-stage and not-production-ready boundaries visible.
+- Aligned Enterprise Edition planning docs with the current `enterprise/docs/` structure.
+- Updated README and testing documentation to the verified 434-test baseline.
+
+### Documented status
+
+- Current README status: `434 tests passing locally`.
+- Current README coverage: `93.31%` total test coverage with branch coverage enabled.
+- Latest verified run: `434 passed in 35.39s` on Windows / Python 3.13.
 
 ### Notes
 
