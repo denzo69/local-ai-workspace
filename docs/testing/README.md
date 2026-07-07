@@ -28,6 +28,8 @@ Verified local baseline:
 - Coverage gate: 60% minimum baseline guard
 - CI matrix: Python 3.10, 3.11 and 3.12 on Ubuntu
 
+The current baseline predates the README value-proposition polish. Re-run `python -m pytest` after pulling the latest copy changes before updating these numbers again.
+
 ## Eval and hardening coverage
 
 The project includes deterministic and regression-oriented coverage for:
