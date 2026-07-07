@@ -94,6 +94,7 @@ See [Limitations](docs/limitations.md).
 - [CI/CD Roadmap](docs/ci_cd_roadmap.md)
 - [Security](SECURITY.md)
 - [Limitations](docs/limitations.md)
+- [README Positioning Notes](docs/readme_positioning_notes.md)
 - [Code Rewrite Protocol](docs/code_rewrite_protocol.md)
 - [Authentication Policy](docs/authentication_policy.md)
 - [Tool Risk Policy](docs/tool_risk_policy.md)
