@@ -27,7 +27,7 @@ It shows how a local AI assistant can become more than a chat box: a small, test
 - Authentication, CSRF protection and audit logging.
 - Project Health Dashboard and developer trace tools.
 - Backup/restore workflow for local data.
-- 93.31% coverage, 432 tests and an extensive eval suite.
+- 93.31% coverage, 434 tests and an extensive eval suite.
 
 ## Quickstart
 
