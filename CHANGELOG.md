@@ -4,6 +4,24 @@ All notable changes to Local AI Workspace are documented here.
 
 Version headings are kept in descending SemVer order so the public portfolio history is easy to scan.
 
+## v0.1.14 — README Value Proposition Polish
+
+### Added
+
+- Added a concise `What it does` section to the README.
+- Added README positioning notes to keep future copy changes product-like but realistic.
+- Added regression coverage for README value positioning and scope boundaries.
+
+### Changed
+
+- Reframed the public README tagline around a local-first AI workspace rather than only an assistant project.
+- Clarified that the project combines chat UI, persistent memory, document/source retrieval, safety checks, audit logs, eval/trace views, health checks and backup/export workflows.
+- Kept portfolio-stage and not-production-ready boundaries visible.
+
+### Notes
+
+This release improves the public value proposition without changing the technical scope or claiming production readiness.
+
 ## v0.1.13 — Thinking and Semantic Memory Coverage
 
 ### Added
