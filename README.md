@@ -6,7 +6,7 @@
 
 Local AI Workspace is a portfolio-stage AI engineering project built around a FastAPI backend, Ollama/local models, RAG, persistent memory, safety routing and secure tooling.
 
-It shows how a local AI assistant can become more than a chat box: a small, testable workspace where private memory, source documents, tool boundaries, audit logging, evaluations, health checks and backup/export workflows are handled together.
+It shows how a local AI assistant can become more than a chat box: a small, testable workspace where private memory, source documents, tool boundaries, audit logs, evaluations, health checks and backup/export workflows are handled together.
 
 ## What it does
 
@@ -14,7 +14,7 @@ It shows how a local AI assistant can become more than a chat box: a small, test
 - Stores and searches persistent assistant memory.
 - Adds document/source material for retrieval-augmented answers.
 - Routes prompts through response-planning, grounding and safety checks.
-- Tracks security-relevant actions through audit logging.
+- Tracks security-relevant actions through audit logs.
 - Provides eval, trace and tool-risk views for AI behavior review.
 - Includes health, settings, backup and export workflows for daily use.
 
