@@ -2,9 +2,21 @@
 
 ![CI](https://github.com/denzo69/local-ai-workspace/actions/workflows/tests.yml/badge.svg?branch=master)
 
-**Local-first AI assistant built with FastAPI, Ollama, RAG, memory, safety routing and secure tooling.**
+**Local-first AI workspace for building, testing and understanding private AI assistant workflows.**
 
-Local AI Workspace is a portfolio-stage AI engineering project. It demonstrates how a local assistant can combine model interaction with retrieval, memory, authentication, safety boundaries, testing and CI/CD hygiene.
+Local AI Workspace is a portfolio-stage AI engineering project built around a FastAPI backend, Ollama/local models, RAG, persistent memory, safety routing and secure tooling.
+
+It shows how a local AI assistant can become more than a chat box: a small, testable workspace where private memory, source documents, tool boundaries, audit logs, evaluations, health checks and backup/export workflows are handled together.
+
+## What it does
+
+- Runs a local assistant UI backed by FastAPI and Ollama.
+- Stores and searches persistent assistant memory.
+- Adds document/source material for retrieval-augmented answers.
+- Routes prompts through response-planning, grounding and safety checks.
+- Tracks security-relevant actions through audit logging.
+- Provides eval, trace and tool-risk views for AI behavior review.
+- Includes health, settings, backup and export workflows for daily use.
 
 ## Highlights
 
